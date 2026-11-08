@@ -5,8 +5,13 @@ from collections import defaultdict
 
 import pytest
 
-from examples.toy_chatter import run
-from examples.toy_chatter.model import ToyChatter, ToyParameters
+from examples.toy_chatter.model import (
+    ConstantRule,
+    FeedbackRule,
+    SpeakingRule,
+    ToyChatter,
+    ToyParameters,
+)
 from gasp_sim.api import StreamMode, TimeGrid
 
 DEFAULT = ToyParameters()
@@ -17,8 +22,9 @@ def run_model(
     days: int = 2,
     parameters: ToyParameters = DEFAULT,
     mode: StreamMode = StreamMode.NAMED,
+    rule: SpeakingRule | None = None,
 ) -> ToyChatter:
-    model = ToyChatter(parameters, seed=seed, mode=mode)
+    model = ToyChatter(parameters, seed=seed, mode=mode, rule=rule)
     model.run_days(days)
     return model
 
@@ -107,9 +113,22 @@ def test_participation_counts_the_speakers_of_each_round() -> None:
 # --------------------------------------------------------------------------- feedback
 
 
+def test_default_rule_is_feedback_with_default_parameters() -> None:
+    assert ToyChatter(DEFAULT, seed=1).rule == FeedbackRule(base_probability=0.3, feedback=0.4)
+
+
 def test_without_feedback_the_probability_is_constant() -> None:
-    model = run_model(parameters=ToyParameters(feedback=0.0))
-    assert {decision.probability for decision in model.decisions} == {DEFAULT.base_probability}
+    model = run_model(rule=FeedbackRule(feedback=0.0))
+    assert {decision.probability for decision in model.decisions} == {0.3}
+
+
+def test_constant_rule_ignores_the_channel() -> None:
+    model = run_model(rule=ConstantRule(probability=0.7))
+    assert {decision.probability for decision in model.decisions} == {0.7}
+
+
+def test_feedback_rule_caps_the_probability_at_one() -> None:
+    assert FeedbackRule(base_probability=0.9, feedback=0.5).probability_for(1.0) == 1.0
 
 
 def test_stronger_feedback_never_reduces_participation() -> None:
@@ -119,8 +138,8 @@ def test_stronger_feedback_never_reduces_participation() -> None:
     probability with feedback is never below the base probability.
     """
     for seed in range(5):
-        low = run_model(seed=seed, parameters=ToyParameters(feedback=0.0))
-        high = run_model(seed=seed, parameters=ToyParameters(feedback=0.6))
+        low = run_model(seed=seed, rule=FeedbackRule(feedback=0.0))
+        high = run_model(seed=seed, rule=FeedbackRule(feedback=0.6))
         for (tick_low, share_low), (tick_high, share_high) in zip(
             low.participation, high.participation, strict=True
         ):
@@ -164,9 +183,6 @@ def test_named_and_single_stream_modes_are_statistically_equivalent() -> None:
     "kwargs",
     [
         {"n_agents": 0},
-        {"base_probability": 1.5},
-        {"base_probability": -0.1},
-        {"feedback": -1.0},
         {"window_hours": 0.0},
         {"consultation_period_hours": math.inf},
     ],
@@ -176,15 +192,23 @@ def test_invalid_parameters_are_rejected(kwargs: dict[str, float]) -> None:
         ToyParameters(**kwargs)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("rule", "kwargs"),
+    [
+        (FeedbackRule, {"base_probability": 1.5}),
+        (FeedbackRule, {"base_probability": -0.1}),
+        (FeedbackRule, {"feedback": -1.0}),
+        (FeedbackRule, {"feedback": math.nan}),
+        (ConstantRule, {"probability": 1.1}),
+    ],
+)
+def test_invalid_rules_are_rejected(rule: type, kwargs: dict[str, float]) -> None:
+    with pytest.raises(ValueError):
+        rule(**kwargs)
+
+
 def test_custom_grid() -> None:
     model = ToyChatter(DEFAULT, seed=1, grid=TimeGrid(tick_minutes=15, day_minutes=480))
     model.run_days(1)
     assert model.period == 2
     assert model.summary().consultations == DEFAULT.n_agents * 16
-
-
-def test_run_script_prints_a_summary(capsys: pytest.CaptureFixture[str]) -> None:
-    run.main(seed=3, days=1)
-    output = capsys.readouterr().out
-    assert "no scientific value" in output
-    assert "mean participation" in output

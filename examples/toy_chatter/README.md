@@ -20,20 +20,68 @@ would.
 - **Phases**: `start_day` (at the first tick of each day), then, at every tick,
   `consultations` (agents decide whether to speak) and `participation` (share of consulting
   agents who spoke, read from the entries staged during the tick).
-- **A small feedback loop**: the probability of speaking rises with the share of agents who
-  spoke during the last hour.
+- **A replaceable speaking rule** (an *extension point*): `feedback` (the default, the
+  probability of speaking rises with the share of agents who spoke during the last hour)
+  or `constant`.
+- **Configuration files** (ADR-0014): the model is configured from a YAML file, validated
+  strictly, with presets and plugins.
 
 ## Run it
 
 From the root of the repository:
 
 ```bash
-uv run python -m examples.toy_chatter.run
+uv run python -m examples.toy_chatter.run                                   # configs/default.yaml
+uv run python -m examples.toy_chatter.run examples/toy_chatter/configs/no_feedback.yaml
+uv run python -m examples.toy_chatter.run examples/toy_chatter/configs/with_plugin.yaml
+uv run python -m examples.toy_chatter.run examples/toy_chatter/configs/default.yaml --resolved
 ```
+
+`--resolved` prints every setting, defaults included, instead of running the model. An
+invalid file prints every problem found, for example:
+
+```text
+Invalid configuration bad.yaml (3 errors):
+  error: speaking_rule → base_probability: must be at most 1 (got 1.5)
+  error: n_agnets: unknown setting; did you mean 'n_agents'?
+  error: consultation_period_hours: must be a whole number of 5-minute ticks (got 0.1)
+```
+
+## Configuration files
+
+```yaml
+seed: 42
+days: 5
+n_agents: 5
+consultation_period_hours: 0.5   # must be a whole number of 5-minute ticks
+window_hours: 1.0                # rounded to the nearest tick, with a warning
+speaking_rule:
+  type: feedback                 # the component, then its parameters
+  base_probability: 0.3
+  feedback: 0.4
+```
+
+Settings left out keep their default value. Advanced settings common to every model:
+`stream_mode` (`named` or `single`), `time` (`tick_minutes`, `day_hours`), `preset` and
+`plugins`.
+
+## Adding a component (developers)
+
+`extra_rules.py` is a complete plugin: a class implementing `SpeakingRule`, a
+`ComponentParameters` model for its parameters, and a function `register(registry)`. List
+the module (or a Python file, relative to the configuration file) under `plugins:`, as in
+`configs/with_plugin.yaml`. A plugin may also be published in a package and advertised as an
+entry point.
 
 ## Files
 
-- `model.py` — the model (`ToyChatter`, `ToyParameters`).
-- `run.py` — runs five working days and prints a summary.
+- `model.py` — the model (`ToyChatter`, `ToyParameters`, the speaking rules); it knows
+  nothing about configuration files.
+- `config.py` — the extension point, the components, the preset, the schema (`ToyConfig`),
+  `default_registry()`, `load()` and `build()`.
+- `extra_rules.py` — an example plugin adding the `threshold` speaking rule.
+- `configs/` — example configuration files.
+- `run.py` — runs a configuration file and prints a summary.
 
-Tests: `tests/examples/test_toy_chatter.py`.
+Tests: `tests/examples/test_toy_chatter.py`, `test_toy_config.py`,
+`test_toy_config_properties.py`.

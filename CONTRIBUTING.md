@@ -1,9 +1,10 @@
 # Contributing to gasp-sim
 
 Thank you for your interest in gasp-sim. This guide explains how to set up a development
-environment and the conventions the project follows. A guide to writing extensions
-(new behaviours, personalities, proxies or measures) will be added once the extension
-interfaces exist.
+environment and the conventions the project follows. A full guide to writing extensions
+(new behaviours, personalities, proxies or measures) will be added with the GASP model; in
+the meantime, `examples/toy_chatter/extra_rules.py` is a complete example of a plugin
+(see ADR-0014).
 
 ## Language
 

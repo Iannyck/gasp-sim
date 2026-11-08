@@ -1,0 +1,15 @@
+# Toy chatter with a speaking rule added by a local plugin (toy model, no scientific value).
+#
+# The plugin module examples.toy_chatter.extra_rules registers the "threshold" rule.
+# A plugin can also be a Python file, given by its path relative to this file.
+
+plugins:
+  - examples.toy_chatter.extra_rules
+seed: 42
+days: 5
+
+speaking_rule:
+  type: threshold
+  threshold: 0.4
+  quiet_probability: 0.2
+  lively_probability: 0.6

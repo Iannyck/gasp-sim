@@ -9,6 +9,21 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Configuration files (`gasp_sim.config`, ADR-0014): YAML files validated strictly
+  against a pydantic schema, with every problem listed at once with its location and the
+  rule broken (unknown settings with suggestions, no silent conversion, settings written
+  twice, durations that are not whole numbers of ticks); rounded durations reported as
+  warnings; presets merged with the file; resolved, frozen configuration that loads back
+  identically; JSON Schema export including the parameters of every component.
+- Registry of extension points, components and presets (`gasp_sim.registry`, ADR-0014),
+  filled by built-in code, installed plugins (entry points) and local plugins listed in a
+  configuration file; registering a name twice is an error.
+- Settings common to every run (`RunSettings`: seed, days, stream mode, time grid,
+  preset, plugins) and duration fields `Hours` and `ExactHours`.
+- New dependencies: pydantic and PyYAML.
+- Toy chatter example: replaceable speaking rule (`constant`, `feedback`), configuration
+  schema, preset `no_feedback`, example plugin adding a `threshold` rule, three example
+  files, and `run.py` now runs a configuration file (its reference run is unchanged).
 - Day-start phases (`Simulation(day_start_phases=...)`): run at the first tick of each
   working day with their own step context, before the events of that tick are released
   (ADR-0013).
