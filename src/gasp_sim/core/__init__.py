@@ -10,4 +10,12 @@ clock
     Simulation clock and conversion of durations to ticks.
 events
     Event queue for future events and synchronous notification bus.
+deferred
+    Append-only logs whose entries become visible one tick after they are written.
+context
+    What a phase receives during one tick.
+phases
+    Interface of the ordered processes executed at every tick.
+simulation
+    The simulation loop.
 """
