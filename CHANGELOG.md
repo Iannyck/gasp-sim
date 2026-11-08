@@ -9,6 +9,9 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Example model `examples/toy_chatter` (toy model, no scientific value) written with the
+  public API only, with tests and a first check that named and single random-stream
+  modes give statistically equivalent results (ADR-0002).
 - Engine simulation loop (`gasp_sim.core.simulation`): phases run in order at every
   tick, `DayStarted` published before the events of the first tick of each day,
   `StepCompleted` after each tick, failed simulations cannot be resumed.

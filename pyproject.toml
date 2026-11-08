@@ -91,6 +91,10 @@ select = [
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
+[tool.ruff.lint.isort]
+# The example models are first-party code, like the package itself.
+known-first-party = ["gasp_sim", "examples"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 "docs/conf.py" = ["D"]
@@ -99,7 +103,7 @@ convention = "numpy"
 
 [tool.mypy]
 python_version = "3.12"
-files = ["src"]
+files = ["src", "examples"]
 strict = true
 warn_unreachable = true
 
@@ -107,6 +111,8 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets the tests import the example models (examples/ is not part of the package).
+pythonpath = ["."]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
 # Any unexpected warning fails the tests; expected ones are checked with pytest.warns.
 filterwarnings = ["error"]
