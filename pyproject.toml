@@ -1,0 +1,173 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gasp-sim"
+version = "0.1.0.dev0"
+description = "Agent-based simulator testing whether a gamified affective social proxy (GASP) can break the spiral of silence in remote Agile teams."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+# TODO: replace with the list of authors before the first release.
+authors = [{ name = "gasp-sim contributors" }]
+keywords = [
+    "agent-based modeling",
+    "simulation",
+    "monte carlo",
+    "spiral of silence",
+    "agile",
+    "remote work",
+    "affective computing",
+    "gamification",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=2.0,<3",
+    "typer>=0.15,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.100",
+    "import-linter>=2.0",
+    "mypy>=1.10",
+    "pre-commit>=4.0",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.17",
+]
+docs = [
+    # MyST-Parser requires Sphinx >= 8 and < 10.
+    "myst-parser>=4.0",
+    "numpydoc>=1.8",
+    "sphinx>=8,<10",
+]
+
+[project.scripts]
+gasp-sim = "gasp_sim.cli.main:app"
+
+[project.urls]
+Repository = "https://github.com/Iannyck/gasp-sim"
+Issues = "https://github.com/Iannyck/gasp-sim/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gasp_sim"]
+
+# --------------------------------------------------------------------------- ruff
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"docs/conf.py" = ["D"]
+
+# --------------------------------------------------------------------------- mypy
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+strict = true
+warn_unreachable = true
+
+# --------------------------------------------------------------------------- pytest
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+
+[tool.coverage.run]
+source = ["gasp_sim"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+# --------------------------------------------------------------------------- import-linter
+# Layer rules from dev-conventions §9.3. Only the unambiguous rules are encoded for now.
+
+[tool.importlinter]
+root_package = "gasp_sim"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The engine core does not depend on any other part of gasp_sim"
+type = "forbidden"
+source_modules = ["gasp_sim.core"]
+forbidden_modules = [
+    "gasp_sim.model",
+    "gasp_sim.config",
+    "gasp_sim.recording",
+    "gasp_sim.experiment",
+    "gasp_sim.analysis",
+    "gasp_sim.viz",
+    "gasp_sim.ui",
+    "gasp_sim.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "The GASP model does not depend on outer layers"
+type = "forbidden"
+source_modules = ["gasp_sim.model"]
+forbidden_modules = [
+    "gasp_sim.recording",
+    "gasp_sim.experiment",
+    "gasp_sim.analysis",
+    "gasp_sim.viz",
+    "gasp_sim.ui",
+    "gasp_sim.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nothing depends on the user-facing layers (ui, cli)"
+type = "forbidden"
+source_modules = [
+    "gasp_sim.core",
+    "gasp_sim.model",
+    "gasp_sim.config",
+    "gasp_sim.recording",
+    "gasp_sim.experiment",
+    "gasp_sim.analysis",
+    "gasp_sim.viz",
+]
+forbidden_modules = ["gasp_sim.ui", "gasp_sim.cli"]
+
+[[tool.importlinter.contracts]]
+name = "The engine core and the model only use the scientific stack, not CLI tools"
+type = "forbidden"
+source_modules = ["gasp_sim.core", "gasp_sim.model"]
+forbidden_modules = ["typer"]

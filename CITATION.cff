@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+title: "gasp-sim"
+abstract: >-
+  Agent-based simulator testing whether a gamified affective social proxy (GASP, a
+  virtual pet) can break the spiral of silence in remote Agile teams.
+# TODO: replace with the list of software authors before the first release.
+authors:
+  - name: "gasp-sim contributors"
+version: "0.1.0.dev0"
+license: MIT
+repository-code: "https://github.com/Iannyck/gasp-sim"
+keywords:
+  - agent-based modeling
+  - simulation
+  - spiral of silence
+  - agile
+  - affective computing
+  - gamification
+references:
+  - type: conference-paper
+    title: "Mitigating the Spiral of Silence in Remote Agile Teams through Gamified Affective Social Proxies"
+    authors:
+      - family-names: "Vy"
+        given-names: "Thi Huyen"
+        orcid: "https://orcid.org/0009-0004-0900-9789"
+    year: 2026
+    conference:
+      name: "IEEE GEM 2026"
+    notes: "Accepted. Full conference name, pages and DOI to be completed."
