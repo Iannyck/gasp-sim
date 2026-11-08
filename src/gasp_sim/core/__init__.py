@@ -8,4 +8,6 @@ rng
     Named random streams derived from a single run seed.
 clock
     Simulation clock and conversion of durations to ticks.
+events
+    Event queue for future events and synchronous notification bus.
 """
