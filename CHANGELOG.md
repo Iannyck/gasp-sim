@@ -9,6 +9,12 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Engine simulation loop (`gasp_sim.core.simulation`): phases run in order at every
+  tick, `DayStarted` published before the events of the first tick of each day,
+  `StepCompleted` after each tick, failed simulations cannot be resumed.
+- Step context (`gasp_sim.core.context`), phase interface (`gasp_sim.core.phases`) and
+  deferred logs (`gasp_sim.core.deferred`) guaranteeing synchronous perception.
+- First public API (`gasp_sim.api`) for model and extension developers.
 - Engine events (`gasp_sim.core.events`): queue of future events released tick by tick
   in total order (tick, priority, order of scheduling), lazy cancellation by handle, and a
   synchronous notification bus delivering to subscribers in order of subscription.
