@@ -1,0 +1,11 @@
+# Toy chatter with the "no_feedback" preset (toy model, no scientific value).
+#
+# The preset sets the speaking rule to a constant probability of 0.3. The values written
+# below complete or override those of the preset.
+
+preset: no_feedback
+seed: 42
+days: 5
+
+speaking_rule:
+  probability: 0.5               # overrides the 0.3 of the preset

@@ -7,9 +7,13 @@
 
 A few agents consult a shared channel on a regular rhythm (every 30 minutes by default,
 each with a personal offset, restarting every morning). At each consultation an agent
-speaks with a probability that rises with the recent activity of the channel (a small
-feedback loop). Messages written during a tick become visible from the next tick
-(synchronous perception, ADR-0007).
+speaks with a probability given by a replaceable *speaking rule* (:class:`SpeakingRule`):
+by default it rises with the recent activity of the channel (a small feedback loop).
+Messages written during a tick become visible from the next tick (synchronous perception,
+ADR-0007).
+
+This module contains only the model; :mod:`examples.toy_chatter.config` makes it
+configurable from a YAML file.
 
 The model uses only the public API (:mod:`gasp_sim.api`), as a third-party extension
 would. Every part of the engine is exercised: named random streams, the time grid and
@@ -29,6 +33,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
 
 from gasp_sim.api import (
     DeferredLog,
@@ -44,9 +49,12 @@ from gasp_sim.api import (
 
 __all__ = [
     "STREAMS",
+    "ConstantRule",
     "Consultation",
     "Decision",
+    "FeedbackRule",
     "Message",
+    "SpeakingRule",
     "ToyChatter",
     "ToyParameters",
     "ToySummary",
@@ -57,6 +65,74 @@ STREAMS = (
     StreamSpec("rhythm", 0, StreamScope.AGENT),
     StreamSpec("speech", 1, StreamScope.AGENT),
 )
+
+
+@runtime_checkable
+class SpeakingRule(Protocol):
+    """Gives the probability that a consulting agent speaks (extension point)."""
+
+    def probability_for(self, recent_share: float) -> float:
+        """Return the probability of speaking.
+
+        Parameters
+        ----------
+        recent_share : float
+            Share of the agents who spoke during the recent window, in [0, 1], as
+            perceived at the start of the tick.
+        """
+
+
+@dataclass(frozen=True, slots=True)
+class ConstantRule:
+    """Speak with the same probability at every consultation, whatever the channel.
+
+    Parameters
+    ----------
+    probability : float, optional
+        Probability of speaking, in [0, 1] (default 0.3).
+    """
+
+    probability: float = 0.3
+
+    def __post_init__(self) -> None:
+        """Validate the probability."""
+        _check_probability("probability", self.probability)
+
+    def probability_for(self, recent_share: float) -> float:
+        """Return the constant probability."""
+        return self.probability
+
+
+@dataclass(frozen=True, slots=True)
+class FeedbackRule:
+    """Speak more when others spoke recently: ``min(1, base + feedback * recent_share)``.
+
+    Parameters
+    ----------
+    base_probability : float, optional
+        Probability of speaking when the channel has been silent (default 0.3).
+    feedback : float, optional
+        Added to the probability, multiplied by the share of agents who spoke during the
+        recent window (default 0.4).
+    """
+
+    base_probability: float = 0.3
+    feedback: float = 0.4
+
+    def __post_init__(self) -> None:
+        """Validate the parameters."""
+        _check_probability("base_probability", self.base_probability)
+        if not math.isfinite(self.feedback) or self.feedback < 0:
+            raise ValueError(f"feedback must be non-negative, got {self.feedback}.")
+
+    def probability_for(self, recent_share: float) -> float:
+        """Return the probability for the given recent activity."""
+        return min(1.0, self.base_probability + self.feedback * recent_share)
+
+
+def _check_probability(name: str, value: float) -> None:
+    if not 0 <= value <= 1:
+        raise ValueError(f"{name} must be in [0, 1], got {value}.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,13 +146,8 @@ class ToyParameters:
     consultation_period_hours : float, optional
         Time between two consultations of an agent, in hours (default 0.5). Must be a
         whole number of ticks.
-    base_probability : float, optional
-        Probability of speaking when the channel has been silent (default 0.3).
-    feedback : float, optional
-        Added to the probability, multiplied by the share of agents who spoke during the
-        recent window (default 0.4).
     window_hours : float, optional
-        Length of the recent window, in hours (default 1.0).
+        Length of the recent window perceived by agents, in hours (default 1.0).
 
     Raises
     ------
@@ -86,18 +157,12 @@ class ToyParameters:
 
     n_agents: int = 5
     consultation_period_hours: float = 0.5
-    base_probability: float = 0.3
-    feedback: float = 0.4
     window_hours: float = 1.0
 
     def __post_init__(self) -> None:
         """Validate the parameters."""
         if self.n_agents < 1:
             raise ValueError(f"n_agents must be at least 1, got {self.n_agents}.")
-        if not 0 <= self.base_probability <= 1:
-            raise ValueError(f"base_probability must be in [0, 1], got {self.base_probability}.")
-        if self.feedback < 0:
-            raise ValueError(f"feedback must be non-negative, got {self.feedback}.")
         for name in ("consultation_period_hours", "window_hours"):
             value = getattr(self, name)
             if not math.isfinite(value) or value <= 0:
@@ -153,6 +218,8 @@ class ToyChatter:
         Model parameters.
     seed : int
         Run seed.
+    rule : SpeakingRule, optional
+        Speaking rule (default: :class:`FeedbackRule` with its default parameters).
     mode : StreamMode, optional
         Random-stream mode (default named); ``StreamMode.SINGLE`` is for verification only.
     grid : TimeGrid, optional
@@ -164,10 +231,12 @@ class ToyChatter:
         parameters: ToyParameters,
         seed: int,
         *,
+        rule: SpeakingRule | None = None,
         mode: StreamMode = StreamMode.NAMED,
         grid: TimeGrid | None = None,
     ) -> None:
         self.parameters = parameters
+        self.rule: SpeakingRule = rule if rule is not None else FeedbackRule()
         self.grid = grid if grid is not None else TimeGrid()
         self.streams = RandomStreams(seed=seed, specs=STREAMS, mode=mode)
         self.channel = DeferredLog[Message]("channel")
@@ -218,8 +287,7 @@ class ToyChatter:
 
     def speaking_probability(self, recent_speakers: int) -> float:
         """Probability of speaking given the number of recent distinct speakers."""
-        share = recent_speakers / self.parameters.n_agents
-        return min(1.0, self.parameters.base_probability + self.parameters.feedback * share)
+        return self.rule.probability_for(recent_speakers / self.parameters.n_agents)
 
     # ----------------------------------------------------------------- engine hooks
 

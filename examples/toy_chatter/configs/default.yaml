@@ -1,0 +1,17 @@
+# Toy chatter: example configuration (toy model, no scientific value).
+#
+# Durations are in hours. Settings left out keep their default value; the resolved
+# configuration (every setting, defaults included) can be printed with
+#   uv run python -m examples.toy_chatter.run examples/toy_chatter/configs/default.yaml --resolved
+
+seed: 42
+days: 5
+
+n_agents: 5
+consultation_period_hours: 0.5   # must be a whole number of 5-minute ticks
+window_hours: 1.0
+
+speaking_rule:
+  type: feedback                 # or: constant
+  base_probability: 0.3
+  feedback: 0.4
