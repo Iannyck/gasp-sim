@@ -10,8 +10,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
-# TODO: replace with the list of authors before the first release.
-authors = [{ name = "gasp-sim contributors" }]
+authors = [{ name = "Capybaravy" }]
 keywords = [
     "agent-based modeling",
     "simulation",

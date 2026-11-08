@@ -5,9 +5,9 @@ title: "gasp-sim"
 abstract: >-
   Agent-based simulator testing whether a gamified affective social proxy (GASP, a
   virtual pet) can break the spiral of silence in remote Agile teams.
-# TODO: replace with the list of software authors before the first release.
 authors:
-  - name: "gasp-sim contributors"
+  - alias: "Capybaravy"
+    orcid: "https://orcid.org/0009-0004-0900-9789"
 version: "0.1.0.dev0"
 license: MIT
 repository-code: "https://github.com/Iannyck/gasp-sim"
@@ -25,6 +25,11 @@ references:
       - family-names: "Vy"
         given-names: "Thi Huyen"
         orcid: "https://orcid.org/0009-0004-0900-9789"
+      - family-names: "Imbeau"
+        given-names: "Gilles"
+      - family-names: "Bouchard"
+        given-names: "Bruno"
+        orcid: "https://orcid.org/0000-0002-8408-3258"
     year: 2026
     conference:
       name: "IEEE GEM 2026"
