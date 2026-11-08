@@ -108,6 +108,8 @@ warn_unreachable = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
+# Any unexpected warning fails the tests; expected ones are checked with pytest.warns.
+filterwarnings = ["error"]
 
 [tool.coverage.run]
 source = ["gasp_sim"]

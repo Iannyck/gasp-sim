@@ -9,6 +9,13 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Engine random streams (`gasp_sim.core.rng`): named streams derived from one run seed
+  by explicit keys, per-agent substreams, pinned PCG64DXSM bit generator, single-stream
+  verification mode.
+- Engine clock (`gasp_sim.core.clock`): 5-minute ticks and 8-hour working days by
+  default, day boundaries, conversion of durations from hours to ticks with a warning on
+  rounding.
+- Pytest treats unexpected warnings as errors.
 - Project skeleton: `src/` layout with the `gasp_sim` package and its subpackages,
   `gasp-sim --version` command, smoke tests.
 - Development tooling: uv with a committed lockfile, hatchling, ruff, mypy (strict),
