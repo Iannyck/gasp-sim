@@ -9,6 +9,9 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Engine events (`gasp_sim.core.events`): queue of future events released tick by tick
+  in total order (tick, priority, order of scheduling), lazy cancellation by handle, and a
+  synchronous notification bus delivering to subscribers in order of subscription.
 - Engine random streams (`gasp_sim.core.rng`): named streams derived from one run seed
   by explicit keys, per-agent substreams, pinned PCG64DXSM bit generator, single-stream
   verification mode.
