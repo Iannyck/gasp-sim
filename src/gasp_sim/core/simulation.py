@@ -4,8 +4,10 @@ Each call to :meth:`Simulation.step` executes one tick ``t``:
 
 1. every registered :class:`~gasp_sim.core.deferred.DeferredLog` is opened for ``t``;
 2. if ``t`` is the first tick of a working day, a :class:`DayStarted` notification is
-   published, before any event of ``t`` is released, so that handlers (such as work
-   rhythms) can still schedule events for ``t`` (ADR-0007);
+   published, then every *day-start phase* runs, in order, with its own
+   :class:`~gasp_sim.core.context.StepContext`; no event of ``t`` has been released yet,
+   so these phases (such as work rhythms) can still schedule events for ``t``
+   (ADR-0007, ADR-0013);
 3. the events scheduled for ``t`` are released from the queue, in order;
 4. every phase runs, in order, with the same :class:`~gasp_sim.core.context.StepContext`;
 5. every log is committed: entries appended during ``t`` become visible from ``t + 1``;
@@ -75,7 +77,11 @@ class Simulation:
     Parameters
     ----------
     phases : sequence of Phase
-        Phases run at every tick, in this order. Names must be unique.
+        Phases run at every tick, in this order.
+    day_start_phases : sequence of Phase, optional
+        Phases run only at the first tick of each working day, in this order, before the
+        events of that tick are released (ADR-0013). Phase names must be unique across
+        both sequences.
     streams : RandomStreams
         Named random streams of the run.
     grid : TimeGrid, optional
@@ -99,12 +105,14 @@ class Simulation:
         *,
         phases: Sequence[Phase],
         streams: RandomStreams,
+        day_start_phases: Sequence[Phase] = (),
         grid: TimeGrid | None = None,
         logs: Sequence[DeferredLog[Any]] = (),
         bus: EventBus | None = None,
     ) -> None:
         self._phases = tuple(phases)
-        _check_unique_phases(self._phases)
+        self._day_start_phases = tuple(day_start_phases)
+        _check_unique_phases(self._day_start_phases + self._phases)
         self._logs = tuple(logs)
         _check_unique_names([log.name for log in self._logs], "log")
         self._streams = streams
@@ -117,6 +125,11 @@ class Simulation:
     def phases(self) -> tuple[Phase, ...]:
         """Phases run at every tick, in order."""
         return self._phases
+
+    @property
+    def day_start_phases(self) -> tuple[Phase, ...]:
+        """Phases run at the first tick of each working day, in order."""
+        return self._day_start_phases
 
     @property
     def logs(self) -> tuple[DeferredLog[Any], ...]:
@@ -184,14 +197,13 @@ class Simulation:
                 log._begin(tick)
             if self._clock.is_day_start:
                 self._bus.publish(DayStarted(day=self._clock.day, tick=tick))
+                context = self._new_context(tick, events=())
+                for phase in self._day_start_phases:
+                    phase.run(context)
+                context._close()
             released = self._queue.pop_due(tick)
-            context = StepContext(
-                tick=tick,
-                grid=self._clock.grid,
-                streams=self._streams,
-                events=tuple(scheduled.event for scheduled in released),
-                queue=self._queue,
-                bus=self._bus,
+            context = self._new_context(
+                tick, events=tuple(scheduled.event for scheduled in released)
             )
             for phase in self._phases:
                 phase.run(context)
@@ -207,6 +219,23 @@ class Simulation:
             raise
         return tick
 
+    def run_days(self, days: int) -> None:
+        """Execute ``days`` working days, that is ``days`` times the ticks of a day.
+
+        The count starts from the next tick: if the simulation is in the middle of a working
+        day, ``run_days(1)`` ends in the middle of the next one, not at the end of the
+        current one.
+
+        Raises
+        ------
+        ValueError
+            If ``days`` is not a non-negative integer.
+        """
+        days_value: object = days
+        if not isinstance(days_value, int) or isinstance(days_value, bool) or days < 0:
+            raise ValueError(f"days must be a non-negative integer, got {days_value!r}.")
+        self.run(days * self._clock.grid.ticks_per_day)
+
     def run(self, ticks: int) -> None:
         """Execute ``ticks`` consecutive ticks.
 
@@ -220,6 +249,17 @@ class Simulation:
             raise ValueError(f"ticks must be a non-negative integer, got {ticks_value!r}.")
         for _ in range(ticks):
             self.step()
+
+    def _new_context(self, tick: int, *, events: tuple[object, ...]) -> StepContext:
+        """Create the context given to phases for ``tick``."""
+        return StepContext(
+            tick=tick,
+            grid=self._clock.grid,
+            streams=self._streams,
+            events=events,
+            queue=self._queue,
+            bus=self._bus,
+        )
 
 
 def _check_unique_phases(phases: tuple[Phase, ...]) -> None:

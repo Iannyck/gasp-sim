@@ -9,6 +9,10 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Day-start phases (`Simulation(day_start_phases=...)`): run at the first tick of each
+  working day with their own step context, before the events of that tick are released
+  (ADR-0013).
+- `Simulation.run_days(days)`.
 - Example model `examples/toy_chatter` (toy model, no scientific value) written with the
   public API only, with tests and a first check that named and single random-stream
   modes give statistically equivalent results (ADR-0002).

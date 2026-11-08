@@ -7,6 +7,10 @@ simulation itself, so a phase cannot, for instance, advance the clock. The model
 state (agents, proxy, climate) lives in the model's objects.
 
 A context is valid only during its tick: once the step is over, its actions raise.
+
+Day-start phases (ADR-0013) receive their own context, before the events of the tick are
+released: its ``events`` are empty, and it may schedule events for the current tick.
+Ordinary phases may only schedule events for later ticks (ADR-0011).
 """
 
 from __future__ import annotations
@@ -101,12 +105,15 @@ class StepContext:
         return [event for event in self._events if type(event) is event_type]
 
     def schedule(self, event: object, *, at: int, priority: int = 0) -> EventHandle:
-        """Schedule ``event`` for a later tick ``at``.
+        """Schedule ``event`` for tick ``at``.
+
+        In ordinary phases, ``at`` must be after the current tick. In day-start phases, it
+        may also be the current tick, whose events have not been released yet (ADR-0013).
 
         Raises
         ------
         ValueError
-            If ``at`` is not strictly after the current tick (ADR-0011).
+            If the events of tick ``at`` have already been released (ADR-0011).
         RuntimeError
             If the step of this context is over.
         """

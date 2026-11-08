@@ -261,6 +261,140 @@ def test_phases_can_publish_notifications() -> None:
     assert seen == [("message", 0), ("message", 1)]
 
 
+# --------------------------------------------------------------------------- day-start phases
+
+
+def test_day_start_phases_run_first_and_only_at_the_start_of_each_day() -> None:
+    order: list[str] = []
+
+    def start_day(context: StepContext) -> None:
+        assert context.is_day_start
+        assert context.events == ()
+        order.append(f"start@{context.tick}")
+
+    simulation = Simulation(
+        phases=[FunctionPhase("work", lambda c: order.append(f"work@{c.tick}"))],
+        day_start_phases=[FunctionPhase("start_day", start_day)],
+        streams=streams(),
+        grid=SMALL_GRID,
+    )
+    simulation.bus.subscribe(DayStarted, lambda event: order.append(f"notified@{event.tick}"))
+    simulation.run(5)
+    assert order == [
+        "notified@0",
+        "start@0",
+        "work@0",
+        "work@1",
+        "work@2",
+        "work@3",
+        "notified@4",
+        "start@4",
+        "work@4",
+    ]
+
+
+def test_day_start_phases_can_schedule_events_for_the_same_tick() -> None:
+    received: list[tuple[int, Consultation]] = []
+
+    def start_day(context: StepContext) -> None:
+        # A work rhythm restarts in the morning: first consultation right now.
+        context.schedule(Consultation(0), at=context.tick)
+
+    simulation = Simulation(
+        phases=[
+            FunctionPhase(
+                "talk",
+                lambda c: received.extend((c.tick, e) for e in c.events_of_type(Consultation)),
+            )
+        ],
+        day_start_phases=[FunctionPhase("start_day", start_day)],
+        streams=streams(),
+        grid=SMALL_GRID,
+    )
+    simulation.run(9)
+    assert received == [(0, Consultation(0)), (4, Consultation(0)), (8, Consultation(0))]
+
+
+def test_ordinary_phases_still_cannot_schedule_for_the_current_tick() -> None:
+    def start_day(context: StepContext) -> None:
+        context.schedule(Consultation(0), at=context.tick)
+
+    def bad(context: StepContext) -> None:
+        context.schedule(Consultation(1), at=context.tick)
+
+    simulation = Simulation(
+        phases=[FunctionPhase("bad", bad)],
+        day_start_phases=[FunctionPhase("start_day", start_day)],
+        streams=streams(),
+    )
+    with pytest.raises(ValueError, match="only later ticks"):
+        simulation.step()
+
+
+def test_the_day_start_context_is_closed_before_the_events_are_released() -> None:
+    kept: list[StepContext] = []
+    simulation = Simulation(
+        phases=[FunctionPhase("work", lambda c: None)],
+        day_start_phases=[FunctionPhase("keep", kept.append)],
+        streams=streams(),
+    )
+    simulation.step()
+    with pytest.raises(RuntimeError, match="context is closed"):
+        kept[0].schedule(Consultation(1), at=3)
+
+
+def test_a_failing_day_start_phase_stops_the_simulation() -> None:
+    def broken(context: StepContext) -> None:
+        raise RuntimeError("rhythm failed")
+
+    simulation = Simulation(
+        phases=[], day_start_phases=[FunctionPhase("broken", broken)], streams=streams()
+    )
+    with pytest.raises(RuntimeError, match="rhythm failed"):
+        simulation.step()
+    assert simulation.failed
+
+
+def test_phase_names_must_be_unique_across_both_lists() -> None:
+    with pytest.raises(ValueError, match="phases share the name 'a'"):
+        Simulation(
+            phases=[FunctionPhase("a", lambda c: None)],
+            day_start_phases=[FunctionPhase("a", lambda c: None)],
+            streams=streams(),
+        )
+
+
+def test_day_start_phases_are_exposed() -> None:
+    phase = FunctionPhase("start_day", lambda c: None)
+    simulation = Simulation(phases=[], day_start_phases=[phase], streams=streams())
+    assert simulation.day_start_phases == (phase,)
+
+
+# --------------------------------------------------------------------------- run_days
+
+
+def test_run_days_runs_whole_working_days() -> None:
+    simulation = Simulation(phases=[], streams=streams(), grid=SMALL_GRID)
+    simulation.run_days(3)
+    assert simulation.next_tick == 3 * SMALL_GRID.ticks_per_day
+    simulation.run_days(0)
+    assert simulation.next_tick == 12
+
+
+def test_run_days_counts_from_the_next_tick() -> None:
+    simulation = Simulation(phases=[], streams=streams(), grid=SMALL_GRID)
+    simulation.run(1)
+    simulation.run_days(1)
+    assert simulation.next_tick == 1 + SMALL_GRID.ticks_per_day
+
+
+def test_run_days_rejects_invalid_counts() -> None:
+    simulation = Simulation(phases=[], streams=streams())
+    for days in (-1, 0.5, True):
+        with pytest.raises(ValueError, match="days"):
+            simulation.run_days(days)  # type: ignore[arg-type]
+
+
 # --------------------------------------------------------------------------- synchronous perception
 
 
