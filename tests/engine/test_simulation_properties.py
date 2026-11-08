@@ -41,6 +41,20 @@ def test_day_starts_are_published_exactly_at_day_boundaries(grid: TimeGrid, tick
     assert starts == expected
 
 
+@given(grid=grids, days=st.integers(min_value=0, max_value=12))
+def test_day_start_phases_run_once_per_day_at_its_first_tick(grid: TimeGrid, days: int) -> None:
+    starts: list[int] = []
+    simulation = Simulation(
+        phases=[],
+        day_start_phases=[FunctionPhase("start", lambda context: starts.append(context.tick))],
+        streams=RandomStreams(seed=0, specs=[]),
+        grid=grid,
+    )
+    simulation.run_days(days)
+    assert starts == [day * grid.ticks_per_day for day in range(days)]
+    assert simulation.next_tick == days * grid.ticks_per_day
+
+
 @given(
     plan=st.lists(
         st.tuples(st.integers(min_value=0, max_value=30), st.integers(min_value=1, max_value=10)),

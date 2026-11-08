@@ -31,7 +31,6 @@ import math
 from dataclasses import dataclass, field
 
 from gasp_sim.api import (
-    DayStarted,
     DeferredLog,
     FunctionPhase,
     RandomStreams,
@@ -187,11 +186,11 @@ class ToyChatter:
                 FunctionPhase("consultations", self._consult),
                 FunctionPhase("participation", self._measure_participation),
             ],
+            day_start_phases=[FunctionPhase("start_day", self._start_day)],
             streams=self.streams,
             grid=self.grid,
             logs=[self.channel],
         )
-        self.simulation.bus.subscribe(DayStarted, self._start_day)
 
     @property
     def decisions(self) -> list[Decision]:
@@ -205,7 +204,7 @@ class ToyChatter:
 
     def run_days(self, days: int) -> None:
         """Run ``days`` working days."""
-        self.simulation.run(days * self.grid.ticks_per_day)
+        self.simulation.run_days(days)
 
     def summary(self) -> ToySummary:
         """Summarise the run so far."""
@@ -224,10 +223,10 @@ class ToyChatter:
 
     # ----------------------------------------------------------------- engine hooks
 
-    def _start_day(self, event: DayStarted) -> None:
-        """Reset every agent's rhythm at the start of a working day."""
+    def _start_day(self, context: StepContext) -> None:
+        """Day-start phase: restart every agent's rhythm (ADR-0013)."""
         for agent, offset in enumerate(self.offsets):
-            self.simulation.schedule(Consultation(agent), at=event.tick + offset)
+            context.schedule(Consultation(agent), at=context.tick + offset)
 
     def _consult(self, context: StepContext) -> None:
         """Phase: each consulting agent decides whether to speak."""

@@ -12,13 +12,14 @@ would.
 
 - **Random streams** declared by the model (`STREAMS`), one substream per agent.
 - **Work rhythms**: each agent consults the channel every 30 minutes with a personal offset;
-  rhythms restart every morning, on the `DayStarted` notification.
+  rhythms restart every morning, in a *day-start phase*.
 - **Scheduled events**: each consultation schedules the next one, within the working day.
 - **Synchronous perception**: messages go to a `DeferredLog`; what is written during a tick
   becomes visible from the next tick, so agents consulting at the same tick never see each
   other's messages of that tick.
-- **Phases**: `consultations` (agents decide whether to speak), then `participation` (share
-  of consulting agents who spoke, read from the entries staged during the tick).
+- **Phases**: `start_day` (at the first tick of each day), then, at every tick,
+  `consultations` (agents decide whether to speak) and `participation` (share of consulting
+  agents who spoke, read from the entries staged during the tick).
 - **A small feedback loop**: the probability of speaking rises with the share of agents who
   spoke during the last hour.
 
