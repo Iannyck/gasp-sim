@@ -54,4 +54,6 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Continuous integration on GitHub Actions (lint, types, layer rules, tests on Python
   3.12 to 3.15, documentation build).
 - Sphinx documentation with MyST and numpydoc, including the Architecture Decision
-  Records 0001 to 0009.
+  Records 0001 to 0014.
+- README: current status, how to run the example model, and BibTeX entries for the
+  software and the paper.
