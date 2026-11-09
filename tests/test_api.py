@@ -9,4 +9,10 @@ def test_every_public_name_is_importable() -> None:
 
 
 def test_public_names_are_sorted_and_unique() -> None:
-    assert api.__all__ == sorted(set(api.__all__))
+    # Same order as ruff's rule RUF022: constants, then classes, then functions.
+    def kind(name: str) -> int:
+        if name.isupper():
+            return 0
+        return 1 if name[0].isupper() else 2
+
+    assert api.__all__ == sorted(set(api.__all__), key=lambda name: (kind(name), name))

@@ -9,6 +9,16 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Recording of outputs (`gasp_sim.recording`, ADR-0015): models publish observations on
+  the notification bus; a run recorder writes one CSV table per observation type (level
+  `full`), summary tables computed during the run by aggregators (levels `full` and
+  `summary`, per time window and per run), the resolved configuration and a JSON manifest
+  (status, versions, seed, settings, and the definition of every column), in one directory
+  per run. Rows are written at the end of every simulated day; a failed run is marked as
+  such without hiding the error.
+- `recording:` block in the common run settings (`level`, `window_hours`).
+- Toy chatter example: observations `Decision` and `MessageSent`, tables
+  `consultations` and `messages`, summaries `windows` and `run`, and `run.py --output DIR`.
 - Configuration files (`gasp_sim.config`, ADR-0014): YAML files validated strictly
   against a pydantic schema, with every problem listed at once with its location and the
   rule broken (unknown settings with suggestions, no silent conversion, settings written
@@ -54,6 +64,6 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Continuous integration on GitHub Actions (lint, types, layer rules, tests on Python
   3.12 to 3.15, documentation build).
 - Sphinx documentation with MyST and numpydoc, including the Architecture Decision
-  Records 0001 to 0014.
+  Records 0001 to 0015.
 - README: current status, how to run the example model, and BibTeX entries for the
   software and the paper.
