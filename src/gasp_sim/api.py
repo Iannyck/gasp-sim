@@ -15,6 +15,7 @@ from gasp_sim.config.loader import (
     parse_config,
 )
 from gasp_sim.config.schema import (
+    RecordingSettings,
     RunSettings,
     Slot,
     TimeSettings,
@@ -28,6 +29,8 @@ from gasp_sim.core.events import EventBus, EventHandle, EventQueue, ScheduledEve
 from gasp_sim.core.phases import FunctionPhase, Phase
 from gasp_sim.core.rng import BIT_GENERATOR, RandomStreams, StreamMode, StreamScope, StreamSpec
 from gasp_sim.core.simulation import DayStarted, Simulation, SimulationFailedError, StepCompleted
+from gasp_sim.recording.recorder import RunRecorder
+from gasp_sim.recording.tables import Aggregator, ObservationTable, Period, SummaryTable
 from gasp_sim.registry import (
     Component,
     ExtensionPoint,
@@ -41,6 +44,7 @@ from gasp_sim.registry import (
 
 __all__ = [
     "BIT_GENERATOR",
+    "Aggregator",
     "Clock",
     "Component",
     "ComponentParameters",
@@ -59,13 +63,17 @@ __all__ = [
     "Hours",
     "LoadedConfig",
     "LogEntry",
+    "ObservationTable",
+    "Period",
     "Phase",
     "PluginError",
     "Preset",
     "RandomStreams",
+    "RecordingSettings",
     "RegistrationError",
     "Registry",
     "RegistryError",
+    "RunRecorder",
     "RunSettings",
     "ScheduledEvent",
     "Simulation",
@@ -77,6 +85,7 @@ __all__ = [
     "StreamScope",
     "StreamSpec",
     "Subscription",
+    "SummaryTable",
     "TimeGrid",
     "TimeSettings",
     "UnknownNameError",

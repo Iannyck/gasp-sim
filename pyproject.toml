@@ -206,3 +206,9 @@ forbidden_modules = [
     "gasp_sim.analysis",
     "gasp_sim.viz",
 ]
+
+[[tool.importlinter.contracts]]
+name = "The recording does not depend on experiments, analysis or visualisation"
+type = "forbidden"
+source_modules = ["gasp_sim.recording"]
+forbidden_modules = ["gasp_sim.experiment", "gasp_sim.analysis", "gasp_sim.viz"]

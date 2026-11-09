@@ -54,6 +54,7 @@ __all__ = [
     "Decision",
     "FeedbackRule",
     "Message",
+    "MessageSent",
     "SpeakingRule",
     "ToyChatter",
     "ToyParameters",
@@ -185,12 +186,22 @@ class Message:
 
 @dataclass(frozen=True, slots=True)
 class Decision:
-    """Record of one consultation."""
+    """Record of one consultation; also published on the bus as an observation."""
 
     tick: int
-    agent: int
-    probability: float
-    spoke: bool
+    agent: int = field(metadata={"description": "Agent who consulted the channel, from 0."})
+    probability: float = field(
+        metadata={"description": "Probability of speaking at this consultation.", "unit": "1"}
+    )
+    spoke: bool = field(metadata={"description": "Whether the agent spoke."})
+
+
+@dataclass(frozen=True, slots=True)
+class MessageSent:
+    """Observation published on the bus: ``sender`` wrote a message in the channel."""
+
+    tick: int
+    sender: int = field(metadata={"description": "Agent who wrote the message, from 0."})
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,9 +318,13 @@ class ToyChatter:
         for event in consultations:
             # Exactly one draw per consultation (fixed number of draws, ADR-0002).
             spoke = bool(context.streams.agent("speech", event.agent).random() < probability)
+            decision = Decision(context.tick, event.agent, probability, spoke)
+            self._records.decisions.append(decision)
+            # Observations for whoever listens (for example a run recorder, ADR-0015).
+            context.publish(decision)
             if spoke:
                 self.channel.append(Message(event.agent))
-            self._records.decisions.append(Decision(context.tick, event.agent, probability, spoke))
+                context.publish(MessageSent(context.tick, event.agent))
             next_tick = context.tick + self.period
             if context.grid.day_of(next_tick) == context.day:
                 context.schedule(Consultation(event.agent), at=next_tick)

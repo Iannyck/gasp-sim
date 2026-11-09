@@ -30,13 +30,19 @@ from typing import Annotated, Any, Literal, Union, cast
 from pydantic import Field, create_model, field_validator, model_validator
 from pydantic.fields import FieldInfo
 
-from gasp_sim.config.base import RESERVED_COMPONENT_KEY, ComponentParameters, ConfigSection
+from gasp_sim.config.base import (
+    RESERVED_COMPONENT_KEY,
+    ComponentParameters,
+    ConfigSection,
+    Hours,
+)
 from gasp_sim.core.clock import TimeGrid
 from gasp_sim.core.rng import StreamMode
 from gasp_sim.registry import ExtensionPoint, Registry
 
 __all__ = [
     "BoundSchema",
+    "RecordingSettings",
     "RunSettings",
     "Slot",
     "SlotBinding",
@@ -78,6 +84,23 @@ class TimeSettings(ConfigSection):
         return TimeGrid(tick_minutes=self.tick_minutes, day_minutes=round(self.day_hours * 60))
 
 
+class RecordingSettings(ConfigSection):
+    """What is recorded during a run (ADR-0015)."""
+
+    level: Literal["full", "summary"] = Field(
+        default="full",
+        description=(
+            "'full' writes every observation table and the summaries; 'summary' writes the "
+            "summaries only (per time window and per run). An indicator that was not "
+            "planned cannot be computed afterwards from a 'summary' run."
+        ),
+    )
+    window_hours: Annotated[Hours, Field(gt=0)] = Field(
+        default=8.0,
+        description="Length of the time windows of the summaries, in working hours.",
+    )
+
+
 class RunSettings(ConfigSection):
     """Settings common to every run, whatever the model.
 
@@ -106,6 +129,9 @@ class RunSettings(ConfigSection):
     )
     time: TimeSettings = Field(
         default_factory=TimeSettings, description="Length of a tick and of a working day."
+    )
+    recording: RecordingSettings = Field(
+        default_factory=RecordingSettings, description="What is recorded during the run."
     )
 
     def random_stream_mode(self) -> StreamMode:
