@@ -9,6 +9,21 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Command line (ADR-0016): `gasp-sim validate CONFIG [--resolved]` and
+  `gasp-sim run CONFIG [--output DIR] [--run-id ID]`; runs are recorded in `results/` by
+  default. Until the GASP model is available, both commands report that it is not
+  available yet.
+- Model definitions and single runs (`gasp_sim.experiment`, ADR-0016): `ModelDefinition`
+  (schema, registry, installed plugins, build, tables, summaries, headline values) and
+  `run_single`, with `RunResult` and `RunFailedError`.
+- Run length in working hours: `hours`, as an alternative to `days` (exactly one of the
+  two); `RunSettings.run_ticks()`.
+- Records of loaded plugins (`PluginRecord`): kind, and name and version of the installed
+  package that provides the plugin.
+- `RunRecorder.run_rows`: rows of the summaries of the whole run.
+- Optional durations (`Hours | None`, `ExactHours | None`) are checked like other
+  durations.
+
 - Recording of outputs (`gasp_sim.recording`, ADR-0015): models publish observations on
   the notification bus; a run recorder writes one CSV table per observation type (level
   `full`), summary tables computed during the run by aggregators (levels `full` and
@@ -28,8 +43,8 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Registry of extension points, components and presets (`gasp_sim.registry`, ADR-0014),
   filled by built-in code, installed plugins (entry points) and local plugins listed in a
   configuration file; registering a name twice is an error.
-- Settings common to every run (`RunSettings`: seed, days, stream mode, time grid,
-  preset, plugins) and duration fields `Hours` and `ExactHours`.
+- Settings common to every run (`RunSettings`: seed, length in days or hours, stream
+  mode, time grid, preset, plugins) and duration fields `Hours` and `ExactHours`.
 - New dependencies: pydantic and PyYAML.
 - Toy chatter example: replaceable speaking rule (`constant`, `feedback`), configuration
   schema, preset `no_feedback`, example plugin adding a `threshold` rule, three example
@@ -64,6 +79,6 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Continuous integration on GitHub Actions (lint, types, layer rules, tests on Python
   3.12 to 3.15, documentation build).
 - Sphinx documentation with MyST and numpydoc, including the Architecture Decision
-  Records 0001 to 0015.
+  Records 0001 to 0016.
 - README: current status, how to run the example model, and BibTeX entries for the
   software and the paper.

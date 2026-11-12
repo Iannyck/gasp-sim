@@ -65,7 +65,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     rule_parameters = ", ".join(f"{name}={value}" for name, value in rule.items())
     model = build(loaded)
     if arguments.output is None:
-        model.run_days(config.days)
+        model.simulation.run(config.run_ticks())
         record = None
     else:
         with RunRecorder(
@@ -75,13 +75,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             tables=TABLES,
             summaries=SUMMARIES,
         ) as recorder:
-            model.run_days(config.days)
+            model.simulation.run(config.run_ticks())
         record = recorder.path
     summary = model.summary()
     print("Toy chatter (example model, no scientific value)")
     print(f"  configuration: {os.path.relpath(path)}")
     print(f"  speaking rule: {rule_name} ({rule_parameters})")
-    print(f"  seed: {config.seed}, agents: {config.n_agents}, working days: {config.days}")
+    length = f"{config.days} working days" if config.days else f"{config.hours:g} working hours"
+    print(f"  seed: {config.seed}, agents: {config.n_agents}, length: {length}")
     print(f"  ticks: {summary.ticks}, consultations: {summary.consultations}")
     print(f"  messages: {summary.messages}")
     print(f"  mean participation per consultation round: {summary.mean_participation:.3f}")

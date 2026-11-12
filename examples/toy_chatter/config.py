@@ -17,7 +17,7 @@ Examples
 --------
 >>> loaded = load("examples/toy_chatter/configs/default.yaml")
 >>> model = build(loaded)
->>> model.run_days(loaded.config.days)
+>>> model.simulation.run(loaded.config.run_ticks())
 >>> model.summary().consultations
 400
 """

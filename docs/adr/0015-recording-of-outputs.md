@@ -1,6 +1,7 @@
 # ADR-0015: Recording of outputs (tables, summaries, manifest)
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by ADR-0016 (manifest version 2: run length and records of
+  loaded plugins)
 - **Date:** 2026-11-08
 - **Related:** ADR-0002 (seeds and streams), ADR-0007 (time windows), ADR-0008 (CSV and JSON,
   `full` and `summary` levels), ADR-0011 (notification bus), ADR-0014 (resolved

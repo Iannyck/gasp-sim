@@ -29,12 +29,15 @@ from gasp_sim.core.events import EventBus, EventHandle, EventQueue, ScheduledEve
 from gasp_sim.core.phases import FunctionPhase, Phase
 from gasp_sim.core.rng import BIT_GENERATOR, RandomStreams, StreamMode, StreamScope, StreamSpec
 from gasp_sim.core.simulation import DayStarted, Simulation, SimulationFailedError, StepCompleted
+from gasp_sim.experiment.definition import ModelDefinition
+from gasp_sim.experiment.single import RunFailedError, RunResult, run_single
 from gasp_sim.recording.recorder import RunRecorder
 from gasp_sim.recording.tables import Aggregator, ObservationTable, Period, SummaryTable
 from gasp_sim.registry import (
     Component,
     ExtensionPoint,
     PluginError,
+    PluginRecord,
     Preset,
     RegistrationError,
     Registry,
@@ -63,17 +66,21 @@ __all__ = [
     "Hours",
     "LoadedConfig",
     "LogEntry",
+    "ModelDefinition",
     "ObservationTable",
     "Period",
     "Phase",
     "PluginError",
+    "PluginRecord",
     "Preset",
     "RandomStreams",
     "RecordingSettings",
     "RegistrationError",
     "Registry",
     "RegistryError",
+    "RunFailedError",
     "RunRecorder",
+    "RunResult",
     "RunSettings",
     "ScheduledEvent",
     "Simulation",
@@ -94,4 +101,5 @@ __all__ = [
     "load_config",
     "merge",
     "parse_config",
+    "run_single",
 ]

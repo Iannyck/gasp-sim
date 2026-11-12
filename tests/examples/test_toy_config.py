@@ -136,8 +136,18 @@ def test_run_script_prints_a_summary(capsys: pytest.CaptureFixture[str]) -> None
     output = capsys.readouterr().out
     assert "no scientific value" in output
     assert "speaking rule: feedback (base_probability=0.3, feedback=0.4)" in output
+    assert "seed: 42, agents: 5, length: 5 working days" in output
     assert "consultations: 400" in output
     assert "mean participation per consultation round: 0.680" in output
+
+
+def test_run_script_accepts_a_length_in_hours(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert run.main([str(write(tmp_path, "seed: 1\nhours: 2.5\n"))]) == 0
+    output = capsys.readouterr().out
+    assert "length: 2.5 working hours" in output
+    assert "ticks: 30, consultations: 25" in output
 
 
 def test_run_script_prints_the_resolved_configuration(
@@ -156,7 +166,7 @@ def test_run_script_reports_invalid_files(
 ) -> None:
     path = write(tmp_path, "seed: 1\n")
     assert run.main([str(path)]) == 1
-    assert "days: required setting is missing" in capsys.readouterr().err
+    assert "the length of the run is missing" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("arguments", [["a.yaml", "b.yaml"], ["--other"]])

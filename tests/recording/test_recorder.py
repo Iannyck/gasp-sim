@@ -166,6 +166,7 @@ def test_full_run_writes_every_table(tmp_path: Path) -> None:
         "run-1,0,0,96,0,true,96,0",
     ]
     assert read(recorder.path / "summary" / "run.csv") == ["run_id,pings,first_tick", "run-1,96,0"]
+    assert recorder.run_rows == {"run": (Count(96, 0),)}
 
 
 def test_manifest_of_a_completed_run(tmp_path: Path) -> None:
@@ -188,7 +189,13 @@ def test_manifest_of_a_completed_run(tmp_path: Path) -> None:
         "implementation",
     }
     assert content["random"] == {"seed": 7, "stream_mode": "named", "bit_generator": "PCG64DXSM"}
-    assert content["time"] == {"tick_minutes": 10, "day_minutes": 480, "days": 1}
+    assert content["time"] == {
+        "tick_minutes": 10,
+        "day_minutes": 480,
+        "days": 1,
+        "hours": None,
+        "ticks": 48,
+    }
     assert content["configuration"] == {
         "file": "config.yaml",
         "source": "tiny.yaml",
@@ -319,6 +326,48 @@ def test_failed_run(tmp_path: Path) -> None:
     assert len(read(path / "summary" / "windows.csv")) == 1 + 10
     assert read(path / "summary" / "run.csv") == ["run_id,pings,first_tick"]
     assert content["summaries"]["run"]["rows"] == 0
+
+
+def test_run_rows_are_known_only_once_the_run_is_completed(tmp_path: Path) -> None:
+    loaded = load()
+    simulation = make_simulation(loaded, fail_at=3)
+    recorder = RunRecorder(
+        tmp_path, simulation=simulation, loaded=loaded, tables=TABLES, summaries=SUMMARIES
+    )
+    assert recorder.run_rows == {}
+    with pytest.raises(ValueError, match="boom"), recorder:
+        simulation.run(10)
+    assert recorder.run_rows == {}
+
+
+def test_run_length_in_hours_is_in_the_manifest(tmp_path: Path) -> None:
+    loaded = parse_config("seed: 7\nhours: 2.5\n", Settings, Registry(), origin="tiny.yaml")
+    simulation = make_simulation(loaded)
+    with RunRecorder(tmp_path, simulation=simulation, loaded=loaded, run_id="r") as recorder:
+        simulation.run(loaded.config.run_ticks())
+    content = manifest(recorder)
+    assert content["time"] == {
+        "tick_minutes": 5,
+        "day_minutes": 480,
+        "days": None,
+        "hours": 2.5,
+        "ticks": 30,
+    }
+    assert content["ticks_completed"] == 30
+
+
+def test_plugins_are_described_in_the_manifest(tmp_path: Path) -> None:
+    plugin = tmp_path / "noop.py"
+    plugin.write_text("def register(registry):\n    pass\n", encoding="utf-8")
+    loaded = parse_config(
+        "seed: 7\ndays: 1\nplugins: [noop.py]\n", Settings, Registry(), base_dir=tmp_path
+    )
+    simulation = make_simulation(loaded)
+    with RunRecorder(tmp_path, simulation=simulation, loaded=loaded, run_id="r") as recorder:
+        simulation.run(1)
+    assert manifest(recorder)["configuration"]["plugins"] == [
+        {"reference": "noop.py", "kind": "file", "distribution": None, "version": None}
+    ]
 
 
 def test_interruption_is_recorded_as_a_failure(tmp_path: Path) -> None:
