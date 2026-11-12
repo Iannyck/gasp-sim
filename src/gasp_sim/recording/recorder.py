@@ -20,7 +20,7 @@ Example
 
     with RunRecorder(output, simulation=model.simulation, loaded=loaded,
                      tables=TABLES, summaries=SUMMARIES) as recorder:
-        model.run_days(loaded.config.days)
+        model.simulation.run(loaded.config.run_ticks())
     print(recorder.path)
 """
 
@@ -57,7 +57,7 @@ from gasp_sim.recording.tables import (
 __all__ = ["MANIFEST_VERSION", "RunRecorder", "default_run_id"]
 
 #: Version of the layout of ``manifest.json``; increased when it changes.
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -171,6 +171,7 @@ class RunRecorder:
         self._observation_files: dict[type, tuple[ObservationTable, CsvFile | None]] = {}
         self._summary_files: list[tuple[SummaryTable, CsvFile, Aggregator]] = []
         self._manifest: dict[str, Any] = {}
+        self._run_rows: dict[str, tuple[object, ...]] = {}
         self._started = 0.0
 
     # ----------------------------------------------------------------- properties
@@ -189,6 +190,14 @@ class RunRecorder:
     def status(self) -> str:
         """``"new"``, ``"running"``, ``"completed"`` or ``"failed"``."""
         return self._status
+
+    @property
+    def run_rows(self) -> dict[str, tuple[object, ...]]:
+        """Rows of the summaries of the whole run, by table name, once the run is completed.
+
+        Empty before :meth:`finish`, and after a failed run (no run summary is written).
+        """
+        return dict(self._run_rows)
 
     # ----------------------------------------------------------------- life cycle
 
@@ -313,7 +322,10 @@ class RunRecorder:
         for summary, file, aggregator in self._summary_files:
             if summary.per != per:
                 continue
-            for row in aggregator.rows(period):
+            rows = tuple(aggregator.rows(period))
+            if per == "run":
+                self._run_rows[summary.name] = rows
+            for row in rows:
                 if type(row) is not summary.row:
                     raise TypeError(
                         f"Summary table {summary.name!r}: expected rows of type "
@@ -386,12 +398,14 @@ class RunRecorder:
                 "tick_minutes": grid.tick_minutes,
                 "day_minutes": grid.day_minutes,
                 "days": config.days,
+                "hours": config.hours,
+                "ticks": config.run_ticks(),
             },
             "configuration": {
                 "file": "config.yaml",
                 "source": Path(self._loaded.origin).name,
                 "preset": config.preset,
-                "plugins": list(self._loaded.registry.plugins),
+                "plugins": [plugin.describe() for plugin in self._loaded.registry.plugins],
                 "warnings": [str(issue) for issue in self._loaded.warnings],
             },
             "recording": {

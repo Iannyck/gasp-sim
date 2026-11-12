@@ -24,11 +24,13 @@ from __future__ import annotations
 
 import difflib
 import math
+import types
+import typing
 import warnings
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 import yaml
 from pydantic import ValidationError
@@ -42,6 +44,7 @@ from gasp_sim.config.schema import (
     SlotBinding,
     TimeSettings,
     bind_schema,
+    run_length_problem,
 )
 from gasp_sim.core.clock import TimeGrid
 from gasp_sim.registry import PluginError, Registry, UnknownNameError
@@ -229,7 +232,12 @@ def parse_config[S: RunSettings](
         # Durations are still checked, as far as the invalid configuration allows, so that
         # every problem is reported at once.
         errors, rounding = _check_durations(_raw_durations(bound, raw), _raw_grid(raw))
-        raise ConfigError(origin, [*_validation_issues(error, bound), *errors], rounding) from None
+        issues = _validation_issues(error, bound)
+        # The length rule runs only once every setting is valid; report it now anyway.
+        length = run_length_problem(raw.get("days"), raw.get("hours"))
+        if length is not None and ConfigIssue((), length) not in issues:
+            issues.append(ConfigIssue((), length))
+        raise ConfigError(origin, [*issues, *errors], rounding) from None
     errors, rounding = _check_durations(_durations(config, ()), config.time.grid())
     if errors:
         raise ConfigError(origin, errors, rounding)
@@ -564,7 +572,16 @@ def _check_durations(
 
 
 def _duration_check(field: FieldInfo) -> DurationCheck | None:
-    return next((item for item in field.metadata if isinstance(item, DurationCheck)), None)
+    """Return the duration check of a field, also when the duration is optional."""
+    found = next((item for item in field.metadata if isinstance(item, DurationCheck)), None)
+    if found is None and typing.get_origin(field.annotation) in (Union, types.UnionType):
+        # An optional duration (``Hours | None``) keeps its marks inside the union.
+        for member in typing.get_args(field.annotation):
+            marks = getattr(member, "__metadata__", ())
+            found = next((item for item in marks if isinstance(item, DurationCheck)), None)
+            if found is not None:
+                break
+    return found
 
 
 def _durations(section: ConfigSection, path: Location) -> Iterator[_Duration]:
@@ -573,7 +590,8 @@ def _durations(section: ConfigSection, path: Location) -> Iterator[_Duration]:
         value = getattr(section, name)
         check = _duration_check(field)
         if check is not None:
-            yield (*path, name), float(value), check
+            if value is not None:
+                yield (*path, name), float(value), check
         elif isinstance(value, ConfigSection):
             yield from _durations(value, (*path, name))
 

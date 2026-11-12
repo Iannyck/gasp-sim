@@ -1,6 +1,7 @@
 # ADR-0014: Configuration files and registry of extensions
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by ADR-0016 (run length in days or hours, records of loaded
+  plugins)
 - **Date:** 2026-11-08
 - **Related:** ADR-0002 (stream modes), ADR-0005 (single replaceable proxy), ADR-0007 and
   ADR-0010 (durations and ticks), ADR-0008 (pydantic, entry points, JSON Schema),

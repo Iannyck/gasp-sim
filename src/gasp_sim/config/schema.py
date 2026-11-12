@@ -25,7 +25,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Union, cast
+from typing import Annotated, Any, Literal, Self, Union, cast
 
 from pydantic import Field, create_model, field_validator, model_validator
 from pydantic.fields import FieldInfo
@@ -34,6 +34,7 @@ from gasp_sim.config.base import (
     RESERVED_COMPONENT_KEY,
     ComponentParameters,
     ConfigSection,
+    ExactHours,
     Hours,
 )
 from gasp_sim.core.clock import TimeGrid
@@ -49,6 +50,7 @@ __all__ = [
     "TimeSettings",
     "bind_schema",
     "config_json_schema",
+    "run_length_problem",
 ]
 
 
@@ -119,7 +121,18 @@ class RunSettings(ConfigSection):
         ),
     )
     seed: int = Field(ge=0, description="Seed of the run; every random draw derives from it.")
-    days: int = Field(ge=1, description="Number of working days to simulate.")
+    days: int | None = Field(
+        default=None,
+        ge=1,
+        description="Length of the run in working days; give either 'days' or 'hours'.",
+    )
+    hours: Annotated[ExactHours, Field(gt=0)] | None = Field(
+        default=None,
+        description=(
+            "Length of the run in working hours, a whole number of ticks; give either "
+            "'days' or 'hours'. The last working day may then be incomplete."
+        ),
+    )
     stream_mode: Literal["named", "single"] = Field(
         default="named",
         description=(
@@ -134,9 +147,46 @@ class RunSettings(ConfigSection):
         default_factory=RecordingSettings, description="What is recorded during the run."
     )
 
+    @model_validator(mode="after")
+    def _check_length(self) -> Self:
+        problem = run_length_problem(self.days, self.hours)
+        if problem is not None:
+            raise ValueError(problem)
+        return self
+
     def random_stream_mode(self) -> StreamMode:
         """Return :attr:`stream_mode` as a :class:`~gasp_sim.core.rng.StreamMode`."""
         return StreamMode(self.stream_mode)
+
+    def run_ticks(self) -> int:
+        """Return the length of the run in ticks, from ``days`` or ``hours``.
+
+        Examples
+        --------
+        >>> RunSettings(seed=1, hours=50).run_ticks()
+        600
+        >>> RunSettings(seed=1, days=2).run_ticks()
+        192
+        """
+        grid = self.time.grid()
+        if self.days is not None:
+            return self.days * grid.ticks_per_day
+        # Validation guarantees that hours is set when days is not.
+        return grid.hours_to_ticks_exact(cast("float", self.hours), name="hours")
+
+
+def run_length_problem(days: object, hours: object) -> str | None:
+    """Return why ``days`` and ``hours`` do not give the length of a run, or ``None``.
+
+    Exactly one of them must be set (not ``None``). The configuration loader also applies
+    this rule to the raw values of an invalid file, so that the problem is reported with
+    the other errors.
+    """
+    if days is None and hours is None:
+        return "the length of the run is missing: give either 'days' or 'hours'"
+    if days is not None and hours is not None:
+        return "give the length of the run as either 'days' or 'hours', not both"
+    return None
 
 
 @dataclass(frozen=True, slots=True)

@@ -16,6 +16,7 @@ from gasp_sim.api import (
     ExactHours,
     ExtensionPoint,
     Hours,
+    PluginRecord,
     Preset,
     Registry,
     RunSettings,
@@ -157,7 +158,7 @@ def test_lists_are_read_as_tuples_and_the_configuration_is_frozen() -> None:
 def test_empty_text_is_an_empty_configuration() -> None:
     assert errors_of("") == [
         "seed: required setting is missing",
-        "days: required setting is missing",
+        "(whole file): the length of the run is missing: give either 'days' or 'hours'",
     ]
 
 
@@ -170,7 +171,15 @@ def test_resolved_configuration_loads_back_identically() -> None:
     resolved = loaded.resolved()
     assert list(resolved["greeter"]) == ["type", "volume", "pause_hours", "loud"]
     assert resolved["greeter"] == {"type": "loud", "volume": 5, "pause_hours": 0.5, "loud": True}
-    assert list(resolved)[:6] == ["preset", "plugins", "seed", "days", "stream_mode", "time"]
+    assert list(resolved)[:7] == [
+        "preset",
+        "plugins",
+        "seed",
+        "days",
+        "hours",
+        "stream_mode",
+        "time",
+    ]
     again = parse(loaded.to_yaml())
     assert again.config == loaded.config
     assert loaded.to_yaml().startswith("# Resolved configuration")
@@ -421,6 +430,75 @@ def test_durations_are_not_checked_when_the_grid_is_invalid() -> None:
     assert errors == ["time → tick_minutes: must be at least 1 (got 0)"]
 
 
+class OptionalDurations(RunSettings):
+    pause_hours: Annotated[Hours, Field(gt=0)] | None = None
+    period_hours: Annotated[ExactHours, Field(gt=0)] | None = None
+
+
+def test_optional_durations_are_checked_only_when_given() -> None:
+    assert parse_config(MINIMAL, OptionalDurations, Registry()).warnings == ()
+    loaded = parse_config(MINIMAL + "pause_hours: 0.52\n", OptionalDurations, Registry())
+    assert [str(issue) for issue in loaded.warnings] == [
+        "pause_hours: 0.52 h is not a whole number of 5-minute ticks; rounded to 6 ticks (0.5 h)"
+    ]
+    with pytest.raises(ConfigError) as caught:
+        parse_config("seed: x\ndays: 1\nperiod_hours: 0.52\n", OptionalDurations, Registry())
+    assert [str(issue) for issue in caught.value.errors] == [
+        "seed: must be a whole number (got 'x')",
+        "period_hours: must be a whole number of 5-minute ticks (got 0.52)",
+    ]
+
+
+# --------------------------------------------------------------------------- run length
+
+
+def test_run_length_in_days_or_hours() -> None:
+    by_days = parse(MINIMAL).config
+    assert (by_days.days, by_days.hours, by_days.run_ticks()) == (2, None, 192)
+    by_hours = parse("seed: 1\nhours: 50\n").config
+    assert (by_hours.days, by_hours.hours, by_hours.run_ticks()) == (None, 50.0, 600)
+    shorter_days = "time: {day_hours: 7.5}\n"
+    assert parse(MINIMAL + shorter_days).config.run_ticks() == 180
+    assert parse("seed: 1\nhours: 50\n" + shorter_days).config.run_ticks() == 600
+    assert parse("seed: 1\ndays: 2\nhours: null\n").config.run_ticks() == 192
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        (
+            "seed: 1\n",
+            "(whole file): the length of the run is missing: give either 'days' or 'hours'",
+        ),
+        (
+            "seed: 1\ndays: null\nhours: null\n",
+            "(whole file): the length of the run is missing: give either 'days' or 'hours'",
+        ),
+        (
+            "seed: 1\ndays: 1\nhours: 2\n",
+            "(whole file): give the length of the run as either 'days' or 'hours', not both",
+        ),
+        ("seed: 1\nhours: 0\n", "hours: must be greater than 0 (got 0)"),
+        ("seed: 1\nhours: 0.03\n", "hours: must be a whole number of 5-minute ticks (got 0.03)"),
+    ],
+)
+def test_run_length_errors(text: str, message: str) -> None:
+    assert errors_of(text) == [message]
+
+
+def test_run_length_errors_are_reported_with_the_others() -> None:
+    assert errors_of("seed: -1\ndays: 1\nhours: 2\n") == [
+        "seed: must be at least 0 (got -1)",
+        "(whole file): give the length of the run as either 'days' or 'hours', not both",
+    ]
+
+
+def test_run_length_in_hours_loads_back_identically() -> None:
+    loaded = parse("seed: 1\nhours: 2.5\n")
+    assert (loaded.resolved()["days"], loaded.resolved()["hours"]) == (None, 2.5)
+    assert parse(loaded.to_yaml()).config == loaded.config
+
+
 # --------------------------------------------------------------------------- presets, plugins
 
 
@@ -496,7 +574,7 @@ def test_local_plugins_are_loaded_into_a_copy_of_the_registry(tmp_path: Path) ->
     registry = make_registry()
     loaded = load_config(path, Settings, registry)
     assert loaded.registry.create(GREETER, loaded.config.greeter).greet() == "hi"
-    assert loaded.registry.plugins == ("shy.py",)
+    assert loaded.registry.plugins == (PluginRecord("shy.py", "file"),)
     assert loaded.config.plugins == ("shy.py",)
     assert "shy" not in registry.component_names(GREETER)
 
@@ -616,7 +694,7 @@ def test_json_schema_describes_every_component() -> None:
         "type": "integer",
     }
     assert loud["properties"]["type"]["const"] == "loud"
-    assert set(schema["required"]) == {"seed", "days"}
+    assert set(schema["required"]) == {"seed"}
 
 
 def test_time_settings() -> None:

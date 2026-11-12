@@ -16,6 +16,7 @@ from gasp_sim.api import (
     ComponentParameters,
     ExtensionPoint,
     PluginError,
+    PluginRecord,
     Preset,
     RegistrationError,
     Registry,
@@ -293,7 +294,7 @@ def test_plugin_module_registers_with_its_own_source(plugin_dir: Path) -> None:
     assert registry.component_names(GREETER) == ("hello", "loud")
     assert registry.component_source(GREETER, "loud") == "plugin 'loud_plugin'"
     assert registry.preset("shouting").name == "shouting"
-    assert registry.plugins == ("loud_plugin",)
+    assert registry.plugins == (PluginRecord("loud_plugin", "module"),)
 
 
 def test_plugin_file_relative_to_a_directory(plugin_dir: Path) -> None:
@@ -303,7 +304,7 @@ def test_plugin_file_relative_to_a_directory(plugin_dir: Path) -> None:
     registry = make_registry()
     registry.load_plugin("../loud_file.py", base_dir=subdirectory)
     assert "loud" in registry.component_names(GREETER)
-    assert registry.plugins == ("../loud_file.py",)
+    assert registry.plugins == (PluginRecord("../loud_file.py", "file"),)
 
 
 def test_plugin_file_relative_to_the_current_directory(
@@ -438,8 +439,8 @@ def test_entry_points_are_loaded_in_order_of_name(
         "entry point 'a_loud' (zz_loud_entry:register)"
     )
     assert registry.plugins == (
-        "a_loud=zz_loud_entry:register",
-        "b_order=aa_order_entry:register",
+        PluginRecord("a_loud=zz_loud_entry:register", "entry_point"),
+        PluginRecord("b_order=aa_order_entry:register", "entry_point"),
     )
 
 
@@ -451,6 +452,72 @@ def test_broken_entry_points(plugin_dir: Path, monkeypatch: pytest.MonkeyPatch) 
     fake_entry_points(monkeypatch, [EntryPoint("value", "value_entry:register", "gasp_sim.test")])
     with pytest.raises(PluginError, match="does not refer to a function"):
         make_registry().load_entry_points("gasp_sim.test")
+
+
+class FakeDistribution:
+    """Stands for an installed package (importlib.metadata.Distribution)."""
+
+    name = "gasp-sim-loud"
+    version = "1.2.0"
+
+
+def test_entry_points_record_their_package_and_version(
+    plugin_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_plugin(plugin_dir, "loud_packaged", PLUGIN)
+    point = EntryPoint("loud", "loud_packaged:register", "gasp_sim.test")
+    vars(point).update(dist=FakeDistribution())  # as importlib.metadata does
+    fake_entry_points(monkeypatch, [point])
+    registry = make_registry()
+    registry.load_entry_points("gasp_sim.test")
+    assert registry.plugins == (
+        PluginRecord("loud=loud_packaged:register", "entry_point", "gasp-sim-loud", "1.2.0"),
+    )
+    assert registry.plugins[0].describe() == {
+        "reference": "loud=loud_packaged:register",
+        "kind": "entry_point",
+        "distribution": "gasp-sim-loud",
+        "version": "1.2.0",
+    }
+
+
+@pytest.mark.parametrize(
+    ("providers", "versions", "expected"),
+    [
+        ({"loud_pkg": ["gasp-sim-loud"]}, {"gasp-sim-loud": "2.0"}, ("gasp-sim-loud", "2.0")),
+        (
+            {"loud_pkg": ["gasp-sim-loud", "gasp-sim-loud"]},
+            {"gasp-sim-loud": "2.0"},
+            ("gasp-sim-loud", "2.0"),
+        ),
+        ({"loud_pkg": ["one", "two"]}, {}, (None, None)),
+        ({}, {}, (None, None)),
+        ({"loud_pkg": ["gone"]}, {}, ("gone", None)),
+    ],
+)
+def test_plugin_modules_record_the_package_that_provides_them(
+    plugin_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    providers: dict[str, list[str]],
+    versions: dict[str, str],
+    expected: tuple[str | None, str | None],
+) -> None:
+    package = plugin_dir / "loud_pkg"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    write_plugin(package, "rules", PLUGIN)
+
+    def version(name: str) -> str:
+        try:
+            return versions[name]
+        except KeyError:
+            raise registry_module.PackageNotFoundError(name) from None
+
+    monkeypatch.setattr(registry_module, "packages_distributions", lambda: providers)
+    monkeypatch.setattr(registry_module, "version", version)
+    registry = make_registry()
+    registry.load_plugin("loud_pkg.rules")
+    assert registry.plugins == (PluginRecord("loud_pkg.rules", "module", *expected),)
 
 
 def test_component_parameters_validate_strictly() -> None:

@@ -28,10 +28,16 @@ import re
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from importlib.metadata import EntryPoint, entry_points
+from importlib.metadata import (
+    EntryPoint,
+    PackageNotFoundError,
+    entry_points,
+    packages_distributions,
+    version,
+)
 from pathlib import Path
 from types import ModuleType
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from gasp_sim.config.base import RESERVED_COMPONENT_KEY, ComponentParameters
 
@@ -39,6 +45,7 @@ __all__ = [
     "Component",
     "ExtensionPoint",
     "PluginError",
+    "PluginRecord",
     "Preset",
     "RegistrationError",
     "Registry",
@@ -207,6 +214,40 @@ class Preset:
             raise ValueError(f"Preset {self.name!r} cannot set 'preset' or 'plugins'.")
 
 
+@dataclass(frozen=True, slots=True)
+class PluginRecord:
+    """A plugin loaded into a registry, as recorded in the manifest of a run.
+
+    Attributes
+    ----------
+    reference : str
+        How the plugin was named: a module name or a file path as written in the
+        configuration, or ``name=module:function`` for an entry point.
+    kind : {"entry_point", "module", "file"}
+        Where the plugin came from: an installed package advertising an entry point, an
+        importable module, or a Python file.
+    distribution : str or None
+        Name of the installed package that provides the plugin, if any. Plugin files never
+        have one.
+    version : str or None
+        Version of that package.
+    """
+
+    reference: str
+    kind: Literal["entry_point", "module", "file"]
+    distribution: str | None = None
+    version: str | None = None
+
+    def describe(self) -> dict[str, str | None]:
+        """Return the record as plain data, for the manifest."""
+        return {
+            "reference": self.reference,
+            "kind": self.kind,
+            "distribution": self.distribution,
+            "version": self.version,
+        }
+
+
 @dataclass(slots=True)
 class _Entries:
     """Mutable content of a registry; copied as a whole to make plugin loading atomic."""
@@ -215,7 +256,7 @@ class _Entries:
     point_sources: dict[str, str] = field(default_factory=dict)
     components: dict[str, dict[str, tuple[Component[Any], str]]] = field(default_factory=dict)
     presets: dict[str, tuple[Preset, str]] = field(default_factory=dict)
-    plugins: list[str] = field(default_factory=list)
+    plugins: list[PluginRecord] = field(default_factory=list)
 
     def copy(self) -> _Entries:
         return _Entries(
@@ -389,7 +430,7 @@ class Registry:
             ) from None
 
     @property
-    def plugins(self) -> tuple[str, ...]:
+    def plugins(self) -> tuple[PluginRecord, ...]:
         """Plugins loaded into this registry, in loading order (recorded in the manifest)."""
         return tuple(self._entries.plugins)
 
@@ -466,9 +507,11 @@ class Registry:
         if not isinstance(reference, str) or not reference.strip():
             raise PluginError(f"A plugin reference must be a non-empty text, got {reference!r}.")
         source = f"plugin {reference!r}"
+        record = PluginRecord(reference, "file")
         if reference.endswith(".py"):
             module = _import_file(Path(base_dir or Path.cwd()) / reference, reference)
         else:
+            record = PluginRecord(reference, "module", *_module_distribution(reference))
             try:
                 module = importlib.import_module(reference)
             except Exception as error:
@@ -478,7 +521,7 @@ class Registry:
         register = getattr(module, "register", None)
         if not callable(register):
             raise PluginError(f"Plugin {reference!r} has no function register(registry) to call.")
-        self._run_register(register, source=source, record=reference)
+        self._run_register(register, source=source, record=record)
 
     def load_entry_points(self, group: str) -> None:
         """Load every installed plugin advertised in the entry-point group ``group``.
@@ -503,9 +546,21 @@ class Registry:
             raise PluginError(f"Cannot load {source}: {type(error).__name__}: {error}") from error
         if not callable(register):
             raise PluginError(f"{source} does not refer to a function register(registry).")
-        self._run_register(register, source=source, record=f"{point.name}={point.value}")
+        distribution = point.dist
+        self._run_register(
+            register,
+            source=source,
+            record=PluginRecord(
+                f"{point.name}={point.value}",
+                "entry_point",
+                distribution.name if distribution is not None else None,
+                distribution.version if distribution is not None else None,
+            ),
+        )
 
-    def _run_register(self, register: Callable[..., object], *, source: str, record: str) -> None:
+    def _run_register(
+        self, register: Callable[..., object], *, source: str, record: PluginRecord
+    ) -> None:
         """Call a plugin's ``register`` on a copy, and keep the result only if it succeeds."""
         trial = _SourcedRegistry(self.copy(), source)
         try:
@@ -576,6 +631,21 @@ def _import_file(path: Path, reference: str) -> ModuleType:
             f"Cannot import plugin file {reference!r}: {type(error).__name__}: {error}"
         ) from error
     return module
+
+
+def _module_distribution(module: str) -> tuple[str | None, str | None]:
+    """Return the installed package that provides ``module``, and its version, if any.
+
+    A module that is not installed (for example one found in the current directory), or
+    whose top-level package is provided by several packages, has none.
+    """
+    providers = packages_distributions().get(module.partition(".")[0], [])
+    if len(set(providers)) != 1:
+        return None, None
+    try:
+        return providers[0], version(providers[0])
+    except PackageNotFoundError:
+        return providers[0], None
 
 
 def _names(mapping: Mapping[str, object]) -> str:
