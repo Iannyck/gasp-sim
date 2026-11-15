@@ -1,0 +1,55 @@
+# GASP model with the defaults of this project (control condition, no proxy yet).
+#
+# Durations are in working hours: nights and weekends do not exist in the simulation.
+# Every setting below is shown with its default value; leave out those you do not change.
+#
+#   uv run gasp-sim validate examples/configs/default.yaml --resolved
+#   uv run gasp-sim run examples/configs/default.yaml
+
+seed: 42
+days: 10                         # or, instead: hours: 50
+
+team_size: 8                     # 3 to 12 members
+
+psychological_safety:            # one value per member, drawn at the start of the run
+  type: uniform                  # or: beta (mean, sd), constant (value)
+  low: 0.0
+  high: 1.0
+
+rhythm:
+  type: synchronous              # everyone consults the team channel together...
+  period_hours: 0.5              # ...every 30 minutes (a whole number of 5-minute ticks)
+
+reading:
+  type: recent                   # members read the messages of the last...
+  hours: 0.5                     # ...30 minutes; or: unread, last_messages
+
+perception:
+  type: individual_memory        # each member keeps an impression of the climate
+  initial_mean: 0.5              # initial impressions: beta distribution
+  initial_sd: 0.1
+  # inertia_hours: 4             # optional: impressions with an inertia of their own
+
+initial_climate: 0.5             # climate of the team at the start (0.5: neutral)
+participation_window_hours: 0.5  # participation of the team = members who wrote during
+                                 # this window, divided by the size of the team
+
+climate_rule:
+  type: ema                      # the climate follows the participation...
+  inertia_hours: 16              # ...with an inertia of 16 working hours (two days):
+                                 # after 16 h, half of the former climate has been
+                                 # replaced by what was observed; after 32 h, three
+                                 # quarters. A small inertia makes the climate follow the
+                                 # last consultations closely; a large one makes it a
+                                 # slow collective state.
+
+expression:
+  type: logistic                 # probability of speaking at a consultation
+  intercept: -0.5                # average member, neutral climate: speaks about 38 % of
+                                 # the time (speaking in public has a cost)
+  safety_weight: 2.0             # least safe vs safest member
+  climate_weight: 2.0            # silent vs fully active perceived climate
+
+recording:
+  level: full                    # full: every table; summary: summaries only
+  window_hours: 8.0              # summaries per working day

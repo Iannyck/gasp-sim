@@ -191,6 +191,12 @@ source_modules = ["gasp_sim.core", "gasp_sim.model"]
 forbidden_modules = ["typer"]
 
 [[tool.importlinter.contracts]]
+name = "The GASP model declares its parameters but never reads configuration files"
+type = "forbidden"
+source_modules = ["gasp_sim.model"]
+forbidden_modules = ["gasp_sim.config.loader", "yaml"]
+
+[[tool.importlinter.contracts]]
 name = "The engine core does not read configuration files"
 type = "forbidden"
 source_modules = ["gasp_sim.core"]

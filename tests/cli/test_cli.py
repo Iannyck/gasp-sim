@@ -81,11 +81,18 @@ def test_mistyped_commands_exit_with_status_2(arguments: list[str]) -> None:
     assert invoke(arguments)[0] == 2
 
 
-def test_the_default_model_is_not_available_yet(tmp_path: Path) -> None:
-    for command in ("validate", "run"):
-        code, _, errors = invoke([command, str(DEFAULT)], app)
-        assert code == 1
-        assert errors == "error: The GASP model is not available yet in this version.\n"
+def test_the_default_model_is_gasp(tmp_path: Path) -> None:
+    path = write(tmp_path, "preset: article\nseed: 42\n")
+    assert invoke(["validate", str(path)], app) == (0, f"{path}: valid configuration.\n", "")
+    code, output, errors = invoke(
+        ["run", str(path), "--output", str(tmp_path), "--run-id", "gasp"], app
+    )
+    assert (code, errors) == (0, "")
+    lines = output.splitlines()
+    assert lines[0] == f"results: {tmp_path / 'gasp'}"
+    assert lines[1] == "  consultations: 800"
+    assert lines[2].startswith("  messages: ")
+    assert lines[3].startswith("  mean_participation: 0.")
 
 
 # --------------------------------------------------------------------------- validate

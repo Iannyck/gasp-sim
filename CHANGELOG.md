@@ -9,10 +9,23 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- GASP model, control condition (`gasp_sim.model`, ADR-0017): team of 3 to 12 members,
+  team channel, reading habits (`recent`, `unread`, `last_messages`), perception of the
+  climate (`shared`, `individual_memory`), climate rules (`ema` with an inertia in hours,
+  `threshold`), probability of speaking (`logistic`, `linear`), distributions (`uniform`,
+  `beta`, `constant`), synchronous rhythm; presets `article` and `article_threshold`;
+  tables `agents`, `consultations`, `messages`, `climate` and summaries `windows`, `run`,
+  `agent_run`. `gasp-sim validate` and `gasp-sim run` now run it.
+- Example configuration files `examples/configs/article.yaml` and
+  `examples/configs/default.yaml`.
+- `ModelDefinition.checks`: warnings that only a model can give (here, time windows
+  shorter than the time between two consultations).
+- A run length given by a file (`days` or `hours`) replaces that of its preset.
+- Import rule: the GASP model never reads configuration files.
+
 - Command line (ADR-0016): `gasp-sim validate CONFIG [--resolved]` and
   `gasp-sim run CONFIG [--output DIR] [--run-id ID]`; runs are recorded in `results/` by
-  default. Until the GASP model is available, both commands report that it is not
-  available yet.
+  default.
 - Model definitions and single runs (`gasp_sim.experiment`, ADR-0016): `ModelDefinition`
   (schema, registry, installed plugins, build, tables, summaries, headline values) and
   `run_single`, with `RunResult` and `RunFailedError`.
@@ -79,6 +92,6 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Continuous integration on GitHub Actions (lint, types, layer rules, tests on Python
   3.12 to 3.15, documentation build).
 - Sphinx documentation with MyST and numpydoc, including the Architecture Decision
-  Records 0001 to 0016.
+  Records 0001 to 0017.
 - README: current status, how to run the example model, and BibTeX entries for the
   software and the paper.

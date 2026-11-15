@@ -358,6 +358,9 @@ def _normalise(value: Any) -> Any:
 # --------------------------------------------------------------------------- plugins, preset
 
 
+_LENGTH = ("days", "hours")
+
+
 def _apply_plugins_and_preset(
     raw: dict[str, Any], registry: Registry, origin: str, base_dir: Path | None
 ) -> tuple[Registry, dict[str, Any]]:
@@ -381,7 +384,12 @@ def _apply_plugins_and_preset(
         except UnknownNameError as error:
             errors.append(ConfigIssue(("preset",), _lower_first(str(error))))
         else:
-            raw = merge(_normalise(preset.values), raw)
+            values = _normalise(preset.values)
+            if "days" in raw or "hours" in raw:
+                # The length of a run is one setting, written in days or in hours: when the
+                # file gives it, it replaces the length of the preset in either unit.
+                values = {key: value for key, value in values.items() if key not in _LENGTH}
+            raw = merge(values, raw)
     if errors:
         raise ConfigError(origin, errors)
     return registry, raw

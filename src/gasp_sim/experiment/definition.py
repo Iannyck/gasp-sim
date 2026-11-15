@@ -8,7 +8,9 @@ model:
   installed plugins;
 - how to build a simulation from a loaded configuration;
 - the observation tables and summaries to record (ADR-0015);
-- which values of the run summaries to show when a run ends (the *headline*).
+- which values of the run summaries to show when a run ends (the *headline*);
+- further checks of a loaded configuration that only the model can make, reported as
+  warnings.
 
 A :class:`ModelDefinition` gathers these. The model itself does not import the recording
 layer, so its definition lives outside it, in the experiment layer.
@@ -16,11 +18,12 @@ layer, so its definition lives outside it, in the experiment layer.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import dataclasses
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from gasp_sim.config.loader import LoadedConfig, load_config
+from gasp_sim.config.loader import ConfigIssue, LoadedConfig, load_config
 from gasp_sim.config.schema import RunSettings
 from gasp_sim.core.simulation import Simulation
 from gasp_sim.recording.tables import ObservationTable, SummaryTable
@@ -55,6 +58,9 @@ class ModelDefinition[S: RunSettings]:
     headline : tuple of (str, str)
         Values shown at the end of a run, as pairs (summary table, column). Each table must
         be a summary of the whole run that gives one row.
+    checks : callable or None
+        Called with a loaded configuration; returns further warnings, for example on
+        settings that are valid one by one but make little sense together.
 
     Raises
     ------
@@ -70,6 +76,7 @@ class ModelDefinition[S: RunSettings]:
     tables: tuple[ObservationTable, ...] = ()
     summaries: tuple[SummaryTable, ...] = ()
     headline: tuple[tuple[str, str], ...] = ()
+    checks: Callable[[LoadedConfig[S]], Sequence[ConfigIssue]] | None = None
 
     def __post_init__(self) -> None:
         """Check that every headline value names a column of a run summary."""
@@ -108,4 +115,8 @@ class ModelDefinition[S: RunSettings]:
         gasp_sim.registry.PluginError
             If an installed plugin cannot be loaded.
         """
-        return load_config(path, self.schema, self.new_registry())
+        loaded = load_config(path, self.schema, self.new_registry())
+        if self.checks is None:
+            return loaded
+        found = tuple(self.checks(loaded))
+        return dataclasses.replace(loaded, warnings=(*loaded.warnings, *found))

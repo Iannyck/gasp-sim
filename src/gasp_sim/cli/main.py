@@ -26,29 +26,20 @@ import typer
 from gasp_sim import __version__
 from gasp_sim.config.loader import ConfigError, LoadedConfig
 from gasp_sim.experiment.definition import ModelDefinition
+from gasp_sim.experiment.gasp import GASP
 from gasp_sim.experiment.single import RunFailedError, run_single
 from gasp_sim.recording.tables import format_value
 from gasp_sim.registry import PluginError
 
-__all__ = ["ModelUnavailableError", "app", "default_model", "make_app"]
+__all__ = ["app", "default_model", "make_app"]
 
 #: Directory of the results when ``--output`` is not given.
 DEFAULT_OUTPUT = Path("results")
 
 
-class ModelUnavailableError(Exception):
-    """The model to run cannot be provided."""
-
-
 def default_model() -> ModelDefinition[Any]:
-    """Return the definition of the GASP model.
-
-    Raises
-    ------
-    ModelUnavailableError
-        Until the GASP model is written (step 6.1b).
-    """
-    raise ModelUnavailableError("The GASP model is not available yet in this version.")
+    """Return the definition of the GASP model."""
+    return GASP
 
 
 def make_app(model: Callable[[], ModelDefinition[Any]] = default_model) -> typer.Typer:
@@ -87,7 +78,7 @@ def make_app(model: Callable[[], ModelDefinition[Any]] = default_model) -> typer
         ] = False,
     ) -> None:
         """Check a configuration file and report every error and warning."""
-        loaded = _load(_model(model), config)
+        loaded = _load(model(), config)
         if resolved:
             typer.echo(loaded.to_yaml(), nl=False)
         else:
@@ -112,7 +103,7 @@ def make_app(model: Callable[[], ModelDefinition[Any]] = default_model) -> typer
         ] = None,
     ) -> None:
         """Run the model and record the run (tables, summaries, manifest)."""
-        definition = _model(model)
+        definition = model()
         loaded = _load(definition, config)
         try:
             result = run_single(definition, loaded, output, run_id=run_id)
@@ -132,13 +123,6 @@ def _version_callback(value: bool) -> None:
     if value:
         typer.echo(f"gasp-sim {__version__}")
         raise typer.Exit()
-
-
-def _model(model: Callable[[], ModelDefinition[Any]]) -> ModelDefinition[Any]:
-    try:
-        return model()
-    except ModelUnavailableError as error:
-        _fail(f"error: {error}")
 
 
 def _load(definition: ModelDefinition[Any], config: Path) -> LoadedConfig[Any]:
