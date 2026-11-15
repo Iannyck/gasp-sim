@@ -1,0 +1,23 @@
+# GASP model: setting of the simulation of the article (control condition, no proxy yet).
+#
+# The preset "article" is an independent re-implementation of the simulation described in
+# the article (Vy, Imbeau & Bouchard, IEEE GEM 2026): 8 members, 100 consultation cycles of
+# 30 minutes (50 working hours), psychological safety drawn uniformly in [0, 1], a neutral
+# initial climate perceived by everyone. What the article does not publish (the formula of
+# the probability of speaking, the update of the climate) is filled with documented
+# modelling assumptions (ADR-0017).
+#
+#   uv run gasp-sim validate examples/configs/article.yaml --resolved   # every setting
+#   uv run gasp-sim run examples/configs/article.yaml                   # records in results/
+
+preset: article
+seed: 42
+
+# Settings written here complete or replace those of the preset. For example, to read the
+# article's wording literally (the climate falls below a participation threshold), use the
+# preset "article_threshold" instead, or:
+#
+# climate_rule:
+#   type: threshold
+#   threshold: 0.5
+#   rate_per_hour: 0.1

@@ -30,7 +30,15 @@ from gasp_sim.core.phases import FunctionPhase, Phase
 from gasp_sim.core.rng import BIT_GENERATOR, RandomStreams, StreamMode, StreamScope, StreamSpec
 from gasp_sim.core.simulation import DayStarted, Simulation, SimulationFailedError, StepCompleted
 from gasp_sim.experiment.definition import ModelDefinition
+from gasp_sim.experiment.gasp import GASP
 from gasp_sim.experiment.single import RunFailedError, RunResult, run_single
+from gasp_sim.model.climate import CLIMATE_RULE, ClimateRule
+from gasp_sim.model.config import PLUGIN_GROUP, GaspConfig
+from gasp_sim.model.distributions import DISTRIBUTION, Distribution
+from gasp_sim.model.expression import EXPRESSION_PROBABILITY, ExpressionProbability, SpeakerView
+from gasp_sim.model.perception import CLIMATE_PERCEPTION, ClimatePerception, Perceived
+from gasp_sim.model.reading import READING_HABIT, Reading, ReadingHabit
+from gasp_sim.model.rhythms import WORK_RHYTHM, WorkRhythm
 from gasp_sim.recording.recorder import RunRecorder
 from gasp_sim.recording.tables import Aggregator, ObservationTable, Period, SummaryTable
 from gasp_sim.registry import (
@@ -47,7 +55,17 @@ from gasp_sim.registry import (
 
 __all__ = [
     "BIT_GENERATOR",
+    "CLIMATE_PERCEPTION",
+    "CLIMATE_RULE",
+    "DISTRIBUTION",
+    "EXPRESSION_PROBABILITY",
+    "GASP",
+    "PLUGIN_GROUP",
+    "READING_HABIT",
+    "WORK_RHYTHM",
     "Aggregator",
+    "ClimatePerception",
+    "ClimateRule",
     "Clock",
     "Component",
     "ComponentParameters",
@@ -56,24 +74,30 @@ __all__ = [
     "ConfigSection",
     "DayStarted",
     "DeferredLog",
+    "Distribution",
     "DurationRoundingWarning",
     "EventBus",
     "EventHandle",
     "EventQueue",
     "ExactHours",
+    "ExpressionProbability",
     "ExtensionPoint",
     "FunctionPhase",
+    "GaspConfig",
     "Hours",
     "LoadedConfig",
     "LogEntry",
     "ModelDefinition",
     "ObservationTable",
+    "Perceived",
     "Period",
     "Phase",
     "PluginError",
     "PluginRecord",
     "Preset",
     "RandomStreams",
+    "Reading",
+    "ReadingHabit",
     "RecordingSettings",
     "RegistrationError",
     "Registry",
@@ -86,6 +110,7 @@ __all__ = [
     "Simulation",
     "SimulationFailedError",
     "Slot",
+    "SpeakerView",
     "StepCompleted",
     "StepContext",
     "StreamMode",
@@ -96,6 +121,7 @@ __all__ = [
     "TimeGrid",
     "TimeSettings",
     "UnknownNameError",
+    "WorkRhythm",
     "bind_schema",
     "config_json_schema",
     "load_config",

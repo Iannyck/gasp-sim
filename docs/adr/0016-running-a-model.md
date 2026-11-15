@@ -1,6 +1,6 @@
 # ADR-0016: Running a model (model definitions, single runs, command line, run length)
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by ADR-0017 (checks of a loaded configuration by the model)
 - **Date:** 2026-11-11
 - **Amends:** ADR-0014 (run length, records of loaded plugins), ADR-0015 (manifest
   layout, version 2)

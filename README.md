@@ -6,9 +6,10 @@ Python agent-based simulator testing whether a gamified affective social proxy (
 virtual pet) can break the spiral of silence in remote Agile teams. Configurable without
 coding, extensible by developers.
 
-> **Status: pre-alpha.** The simulation engine and the configuration files work, and an
-> example model (*toy chatter*, with no scientific value) can be run from a configuration
-> file. The GASP model itself is being written: no GASP experiment can be run yet.
+> **Status: pre-alpha.** The GASP model runs in its control condition (team, climate and
+> decisions to speak, without the affective proxy yet), from a configuration file and the
+> `gasp-sim` command. The proxy, personalities, typed messages and tasks are being written;
+> no comparison between conditions can be run yet.
 
 ## Background
 
@@ -26,16 +27,34 @@ repository:
 
 ```bash
 uv sync
-uv run python -m examples.toy_chatter.run
+uv run gasp-sim run examples/configs/article.yaml
 ```
 
 To work on the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick start (no coding required)
 
-To be written once the GASP model can run. Researchers will configure and run experiments
-from readable configuration files, and later from a user interface. The example model shows
-what these files look like: see [`examples/toy_chatter`](examples/toy_chatter/README.md).
+A run is described by a configuration file (YAML). Two commented examples are in
+[`examples/configs`](examples/configs/):
+
+- `article.yaml`: the setting of the article's simulation (independent re-implementation:
+  8 members, 50 working hours, consultations every 30 minutes);
+- `default.yaml`: every setting of the model with its default value and what it means.
+
+```bash
+uv run gasp-sim validate examples/configs/default.yaml             # check a file
+uv run gasp-sim validate examples/configs/default.yaml --resolved  # every setting
+uv run gasp-sim run examples/configs/article.yaml                  # run and record
+```
+
+`gasp-sim run` creates a new directory in `results/` with the resolved configuration, a
+manifest describing the run and every column, the tables (one row per consultation,
+message and update of the climate) and the summaries (per working day, per run and per
+member), in CSV. The modelling assumptions are described in
+[`docs/adr/0017-gasp-model-control-condition.md`](docs/adr/0017-gasp-model-control-condition.md).
+
+An example model for developers, with no scientific value, shows the engine on its own:
+see [`examples/toy_chatter`](examples/toy_chatter/README.md).
 
 ## Citation
 

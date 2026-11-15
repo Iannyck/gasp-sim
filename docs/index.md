@@ -4,8 +4,8 @@ Agent-based simulator testing whether a gamified affective social proxy (GASP, a
 pet) can break the spiral of silence in remote Agile teams.
 
 ```{warning}
-This project is at an early stage. The simulation engine and the configuration files work,
-with an example model (*toy chatter*, with no scientific value); the GASP model is being
+This project is at an early stage. The GASP model runs in its control condition (without
+the affective proxy yet); the proxy, personalities, typed messages and tasks are being
 written.
 ```
 
